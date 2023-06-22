@@ -10,7 +10,7 @@ App = {
 
   init: async function () {
 
-    return await App.initWeb3();
+    return await App.bindEvents();
   },
 
   initWeb3: async function () {
@@ -40,13 +40,13 @@ App = {
     /*
      * Replace me...
      */
-    $.getJSON("Adoption.json", function (data) {
-      var AdoptionArtifact = data;
+    $.getJSON("Battleship.json", function (data) {
+      var BattleshipArtifact = data;
       // Get the contract artifact and initialize it
-      App.contracts.Adoption = TruffleContract(AdoptionArtifact);
+      App.contracts.Battleship = TruffleContract(BattleshipArtifact);
 
       // Set the web3.js provider for our contract to the provider defined in the previous function
-      App.contracts.Adoption.setProvider(App.web3Provider);
+      App.contracts.Battleship.setProvider(App.web3Provider);
 
       // Use the contract to retrieve and mark the adopted pets
       return App.markAdopted();
@@ -59,11 +59,13 @@ App = {
     $(document).on('click', '#create-new-game-btn', App.createNewGame);
     $(document).on('click', '#join-game-btn', App.joinGame);
     $(document).on('click', '#send-game-condition-btn', App.setGameCondition);
-    $(document).on('click', '#send-game-condition-btn', App.findGame)
+    $(document).on('click', '#send-game-id-btn', App.findGame);
 
     $(document).on('input', "#boardSize", (event) => boardSize = event.target.value);
     $(document).on('input', "#shipsNum", (event) => shipsNum = event.target.value);
     $(document).on('input', "#grandPrize", (event) => grandPrize = event.target.value);
+
+    $(document).on('input', '#gameId', (event) => gameId = event.target.value);
   },
 
   createNewGame: function() {
@@ -89,11 +91,24 @@ App = {
       alert("The number of ship has to be grather than 0, change it!");
       return;
     }else if(grandPrize<=0){
-      alert("The grand prize has to be grather than 0, change it!")
+      alert("The grand prize has to be grather than 0, change it!");
       return;
     }
 
-    $('#set-up-new-game').hide()
+    $('#set-up-new-game').hide();
+  },
+
+  findGame: function(){
+    if(!gameId){ 
+      // Cerca gioco random dal contratto
+    } else if(gameId<=0){
+      alert("Game ID has to be grather than 0 or empty for a random game!");
+      return;
+    } else {
+      // Cercare il gioco per ID
+    }
+
+    $('#set-up-join-game').hide();
   }
 };
 
