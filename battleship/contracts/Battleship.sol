@@ -1,20 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.8.19 <0.9.0;
 // import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-
-library SafeMath {
-  function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
-    c = a + b;
-    assert(c >= a);
-    return c;
-  }
-
-  function less(uint256 a, uint256 b) internal pure returns (uint256 c) {
-    c = a - b;
-    assert(c<=a);
-    return c;
-  }
-}
 
 contract Battleship {
   //structure that represent a single game
@@ -38,7 +24,7 @@ contract Battleship {
   //Game ID generator counter
   uint256 public gameId=0;
   //Available games counter
-  uint256 public availableGames=20;
+  uint256 public availableGames=0;
 
   Game public game;
 
@@ -62,6 +48,7 @@ contract Battleship {
               address(0),
               true);
     games[game.gameId]=game;
+    availableGames++;
     return game.gameId;
   }
 

@@ -10,7 +10,7 @@ App = {
 
   init: async function () {
 
-    return await App.bindEvents();
+    return await App.initWeb3();
   },
 
   initWeb3: async function () {
@@ -49,7 +49,7 @@ App = {
       App.contracts.Battleship.setProvider(App.web3Provider);
 
       // Use the contract to retrieve and mark the adopted pets
-      return App.markAdopted();
+      //return App.markAdopted();
     });
 
     return App.bindEvents();
@@ -94,7 +94,11 @@ App = {
       alert("The grand prize has to be grather than 0, change it!");
       return;
     }
-
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance = instance;
+      return battleshipInstance.createGame(grandPrize, boardSize, shipsNum)
+    })
+    
     $('#set-up-new-game').hide();
   },
 

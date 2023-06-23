@@ -1,0 +1,26 @@
+{
+    "name": "battleship",
+    "version": "1.0.0.",
+    "description": "An Ethereum game",
+    "main": "truffle.js",
+    "directories": {
+        "test": "test"
+    },
+    "scripts": {
+        "dev": "lite-server",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "crypto": "^1.0.1",
+        "lite-server": "^2.6.1",
+        "merkletreejs": "^0.3.10",
+        "web3-utils": "^1.10.0"
+    },
+    "dependencies": {
+        "crypto": "^1.0.1",
+        "merkletreejs": "^0.3.10",
+        "require-from-url": "^3.1.3"
+    }
+}
