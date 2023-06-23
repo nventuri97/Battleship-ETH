@@ -33,6 +33,7 @@ App = {
       App.web3Provider = new Web3.provider.HttpProvider("http://localhost:7545");
     }
     web3 = new Web3(App.web3Provider);
+    web3.eth.defaultAccount = web3.eth.accounts[0];
     return App.initContract();
   },
 
@@ -81,19 +82,16 @@ App = {
   },
 
   setGameCondition: function(){
-    if(!boardSize || !grandPrize || !shipsNum){
-      alert("An input parameters is empty, check board size, ships number or grand size!");
-      return;
-    } else if(boardSize%2!==0 || boardSize <= 0){
-      alert("The board size is not a multiple of 2 and must be grather than 0, change it!");
-      return;
-    } else if(shipsNum<=0){
-      alert("The number of ship has to be grather than 0, change it!");
-      return;
-    }else if(grandPrize<=0){
-      alert("The grand prize has to be grather than 0, change it!");
-      return;
-    }
+    // Check to validate the correctness of the parameters from the creation of new game view
+    if(!boardSize || !grandPrize || !shipsNum)
+      return alert("An input parameters is empty, check board size, ships number or grand size!");
+    else if(boardSize%2!==0 || boardSize <= 0)
+      return alert("The board size is not a multiple of 2 and must be grather than 0, change it!");
+    else if(shipsNum<=0)
+      return alert("The number of ship has to be grather than 0, change it!");
+    else if(grandPrize<=0)
+      return alert("The grand prize has to be grather than 0, change it!");
+
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
       return battleshipInstance.createGame(grandPrize, boardSize, shipsNum)
