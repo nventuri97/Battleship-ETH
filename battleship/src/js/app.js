@@ -95,9 +95,18 @@ App = {
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
       return battleshipInstance.createGame(grandPrize, boardSize, shipsNum)
-    })
-    
-    $('#set-up-new-game').hide();
+    }).then(async function (logArray) {
+      gameId = logArray.logs[0].args._gameId.toNumber();
+      if (gameId < 0) {
+        console.error("Something went wrong, game id is negative!");
+      }
+      else {
+        $('#set-up-new-game').hide();
+        $('#welcome-page').text("Waiting for an opponents! The Game ID is " + gameId + "!");
+      }
+    }).catch(function (err) {
+      console.error(err);
+    });
   },
 
   findGame: function(){

@@ -19,10 +19,12 @@ contract Battleship {
     bool playable;
   }
 
+  event returnGameId(address indexed _from, uint256 _gameId);
+
   //Array of all games present in the blockchain
   mapping(uint256 => Game) public games;
   //Game ID generator counter
-  uint256 public gameId=0;
+  uint256 public gameId=1;
   //Available games counter
   uint256 public availableGames=0;
 
@@ -30,11 +32,11 @@ contract Battleship {
 
   constructor() {}
 
-  function getGameId() private returns (uint256) {
+  function getGameId() public returns (uint256) {
     return gameId++;
   }
 
-  function createGame(uint256 _grandPrize, uint256 _boardSize, uint256 _numberOfShips) public returns (uint256){
+  function createGame(uint256 _grandPrize, uint256 _boardSize, uint256 _numberOfShips) public {
     game=Game(getGameId(), 
               msg.sender, 
               address(0),
@@ -49,7 +51,7 @@ contract Battleship {
               true);
     games[game.gameId]=game;
     availableGames++;
-    return game.gameId;
+    emit returnGameId(msg.sender, game.gameId);
   }
 
 //   function play(uint256 gameId) public returns (uint) {
