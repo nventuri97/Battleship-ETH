@@ -10,7 +10,8 @@ App = {
 
   init: async function () {
 
-    return await App.initWeb3();
+    return await App.bindEvents();
+    // return await App.initWeb3();
   },
 
   initWeb3: async function () {
@@ -57,6 +58,7 @@ App = {
   },
 
   bindEvents: async function () {
+    $(document).on('click', '#back-home-btn', App.backHome);
     $(document).on('click', '#create-new-game-btn', App.createNewGame);
     $(document).on('click', '#join-game-btn', App.joinGame);
     $(document).on('click', '#send-game-condition-btn', App.setGameCondition);
@@ -67,6 +69,15 @@ App = {
     $(document).on('input', "#grandPrize", (event) => grandPrize = event.target.value);
 
     $(document).on('input', '#gameId', (event) => gameId = event.target.value);
+  },
+
+  backHome: function() {
+    $('#game-page').hide();
+    $('#welcome-page').show();
+    $('#set-up-new-game').hide();
+    $('#set-up-join-game').hide();
+    $('#create-new-game-btn').show();
+    $('#join-game-btn').show();
   },
 
   createNewGame: function() {
@@ -101,8 +112,11 @@ App = {
         console.error("Something went wrong, game id is negative!");
       }
       else {
-        $('#set-up-new-game').hide();
-        $('#welcome-page').text("Waiting for an opponents! The Game ID is " + gameId + "!");
+        // $('#set-up-new-game').hide();
+        $('#welcome-page').hide();
+        $('#game-page').show();
+        // $('#back-home-btn').show();
+        $('#game-page').text("Waiting for an opponents! The Game ID is " + gameId + "!");
       }
     }).catch(function (err) {
       console.error(err);
