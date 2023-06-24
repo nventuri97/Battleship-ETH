@@ -20,6 +20,9 @@ contract Battleship {
   }
 
   event returnGameId(address indexed _from, uint256 _gameId);
+  event gameStarted(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _grandPrize);
+  event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
+  event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
 
   //Array of all games present in the blockchain
   mapping(uint256 => Game) public games;
