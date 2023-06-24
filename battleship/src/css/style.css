@@ -54,14 +54,14 @@ body {
 
 .setup-btns{
   position: absolute;
-  bottom: 20em;
-  left: 65em;
+  bottom: 15em;
+  left: 50em;
 }
 
 .setup-params {
   position: absolute;
-  bottom: 10em;
-  left: 65em;
+  bottom: 5em;
+  left: 50em;
 }
 
 .splash-btn:first-child {
