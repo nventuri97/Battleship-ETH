@@ -52,10 +52,16 @@ body {
   margin-left: 2rem;
 }
 
+.home{
+  position: absolute;
+  top: 0.5em;
+  left: 0.5em;
+}
+
 .setup-btns{
   position: absolute;
   bottom: 15em;
-  left: 50em;
+  left: 52em;
 }
 
 .setup-params {
