@@ -10,8 +10,8 @@ App = {
 
   init: async function () {
 
-    return await App.bindEvents();
-    // return await App.initWeb3();
+    // return await App.bindEvents();
+    return await App.initWeb3();
   },
 
   initWeb3: async function () {
@@ -112,10 +112,8 @@ App = {
         console.error("Something went wrong, game id is negative!");
       }
       else {
-        // $('#set-up-new-game').hide();
         $('#welcome-page').hide();
         $('#game-page').show();
-        // $('#back-home-btn').show();
         $('#game-page').text("Waiting for an opponents! The Game ID is " + gameId + "!");
       }
     }).catch(function (err) {
@@ -125,12 +123,44 @@ App = {
 
   findGame: function(){
     if(!gameId){ 
-      // Cerca gioco random dal contratto
+      App.contracts.Battleship.deployed().then(async function (instance){
+        battleshipInstance=instance;
+        return battleshipInstance.joinRandomGame();
+      }).then(async function (logArray){
+        gameId = logArray.logs[0].args._gameId.toNumber();
+        if (gameId < 0) {
+          console.error("Something went wrong, game id is negative!");
+        }
+        else {
+          waitTime=logArray.logs[0].args._startTime.toNumber();
+          $('#welcome-page').hide();
+          $('#game-page').show();
+          $('#game-page').text("Game with ID "+ gameId + " starts in "+waitTime+" seconds");
+        }
+      }).catch(function (err) {
+        console.error(err);
+      });
     } else if(gameId<=0){
       alert("Game ID has to be grather than 0 or empty for a random game!");
       return;
     } else {
-      // Cercare il gioco per ID
+      App.contracts.Battleship.deployed().then(async function (instance){
+        battleshipInstance=instance;
+        return battleshipInstance.joinGameByGameId(gameId);
+      }).then(async function (logArray){
+        gameId = logArray.logs[0].args._gameId.toNumber();
+        if (gameId < 0) {
+          console.error("Something went wrong, game id is negative!");
+        }
+        else {
+          waitTime=logArray.logs[0].args._startTime.toNumber();
+          $('#welcome-page').hide();
+          $('#game-page').show();
+          $('#game-page').text("Game with ID "+ gameId + " starts in "+waitTime+" seconds");
+        }
+      }).catch(function (err) {
+        console.error(err);
+      });
     }
 
     $('#set-up-join-game').hide();

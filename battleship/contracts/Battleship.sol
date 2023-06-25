@@ -21,16 +21,21 @@ contract Battleship {
 
   event returnGameId(address indexed _from, uint256 _gameId);
   event gameStarted(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _grandPrize);
+  event gameReady(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _startTime);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
+  error eventError(string _message);
 
   //Array of all games present in the blockchain
   mapping(uint256 => Game) public games;
   //Game ID generator counter
   uint256 public gameId=1;
-  //Available games counter
-  uint256 public availableGames=0;
+  //Available games array
+  uint256[] public availableGames;
 
+  uint256 public totalGames=0;
+  uint256 public START_TIME=15;
+  uint256 internal nonce=0;
   Game public game;
 
   constructor() {}
@@ -53,13 +58,58 @@ contract Battleship {
               address(0),
               true);
     games[game.gameId]=game;
-    availableGames++;
+    availableGames.push(game.gameId);
+    totalGames++;
     emit returnGameId(msg.sender, game.gameId);
   }
 
-//   function play(uint256 gameId) public returns (uint) {
-//     require(gameId>=0 && gameId<=20);
+  function joinGameByGameId(uint256 _gameId) public {
+    if(games[_gameId].gameId==0)
+      revert eventError("No existing game with this ID ");
 
-//     return gameId;
-//   }
+    game=games[_gameId];
+    game.player2=msg.sender;
+    game.playable=false;
+    deleteElementFromArray(_gameId);
+    emit gameReady(_gameId, game.player1, msg.sender, START_TIME);
+  }
+
+  function joinRandomGame() public {
+    uint256 index=random();
+    uint256 i=0;
+    while(availableGames[index]==0 && i<10){
+      index=random();
+      i++;
+    }
+
+    if(i==10)
+      revert eventError("Something goes wrong, try again!");
+    
+    game=games[index];
+    if(game.playable){
+      game.player2=msg.sender;
+      game.playable=false;
+      deleteElementFromArray(index);
+      emit gameReady(index, game.player1, msg.sender, START_TIME);
+    } else {
+      revert eventError("Something goes wrong, try again!");
+    }
+    
+  }
+
+  function deleteElementFromArray(uint256 _element) internal {
+    for(uint256 i=0;i<availableGames.length;i++){
+      if(availableGames[i]==_element){
+        availableGames[i]=availableGames[availableGames.length-1];
+        availableGames.pop();
+        break;
+      }
+    }
+  }
+
+  function random() internal returns (uint256) {
+    uint256 randomnumber = uint(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % availableGames.length;
+    nonce++;
+    return randomnumber;
+  }
 }
