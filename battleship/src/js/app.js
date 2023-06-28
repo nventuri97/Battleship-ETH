@@ -63,6 +63,7 @@ App = {
     $(document).on('click', '#join-game-btn', App.joinGame);
     $(document).on('click', '#send-game-condition-btn', App.setGameCondition);
     $(document).on('click', '#send-game-id-btn', App.findGame);
+    $(document).on('click', "quit-game-btn", App.quitGame)
 
     $(document).on('input', "#boardSize", (event) => boardSize = event.target.value);
     $(document).on('input', "#shipsNum", (event) => shipsNum = event.target.value);
@@ -114,7 +115,7 @@ App = {
       else {
         $('#welcome-page').hide();
         $('#game-page').show();
-        $('#game-page').text("Waiting for an opponents! The Game ID is " + gameId + "!");
+        document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
       }
     }).catch(function (err) {
       console.error(err);
@@ -135,7 +136,7 @@ App = {
           waitTime=logArray.logs[0].args._startTime.toNumber();
           $('#welcome-page').hide();
           $('#game-page').show();
-          $('#game-page').text("Game with ID "+ gameId + " starts in "+waitTime+" seconds");
+          document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
         }
       }).catch(function (err) {
         console.error(err);
@@ -156,7 +157,7 @@ App = {
           waitTime=logArray.logs[0].args._startTime.toNumber();
           $('#welcome-page').hide();
           $('#game-page').show();
-          $('#game-page').text("Game with ID "+ gameId + " starts in "+waitTime+" seconds");
+          document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
         }
       }).catch(function (err) {
         console.error(err);
@@ -164,6 +165,10 @@ App = {
     }
 
     $('#set-up-join-game').hide();
+  },
+
+  quitGame: function(){
+
   }
 };
 
