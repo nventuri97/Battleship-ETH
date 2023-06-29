@@ -137,6 +137,7 @@ App = {
           $('#welcome-page').hide();
           $('#game-page').show();
           document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
+          setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show(); $('#game-btns').show() }, waitTime*1000);
         }
       }).catch(function (err) {
         console.error(err);
@@ -158,6 +159,7 @@ App = {
           $('#welcome-page').hide();
           $('#game-page').show();
           document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
+          setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show() }, waitTime*1000);
         }
       }).catch(function (err) {
         console.error(err);
