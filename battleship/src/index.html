@@ -38,30 +38,32 @@
       <div id="welcome-page">
         <img src="images/logo-welcome-page.png" class="splash-battleship-image">
 
-        <!-- Main button -->
-        <div id="setup-button" class="setup-btns">
-          <button id="create-new-game-btn" class="btn splash-btn">Create new game</button>
-          <button id="join-game-btn" class="btn splash-btn">Join existing game</button>
-        </div>
-
-        <!-- Set up a new game with required parameters -->
-        <div id="set-up-new-game" class="setup-params" hidden>
-          <div>
-            <h4>Insert the size of the game board</h4>
-            <input required type="number" id="boardSize">
-            <h4>Insert the number of ships</h4>
-            <input required type="number" id="shipsNum">
-            <h4>Insert the amount of ETH of the grand prize</h4>
-            <input required type="number" id="grandPrize">
-            <button id="send-game-condition-btn" class="btn">OK</button>
+        <div class="container">
+          <!-- Main button -->
+          <div id="setup-button" class="setup-btns">
+            <button id="create-new-game-btn" class="btn splash-btn">Create new game</button>
+            <button id="join-game-btn" class="btn splash-btn">Join existing game</button>
           </div>
-        </div>
 
-        <!-- Join an existing game -->
-        <div id="set-up-join-game" class="setup-btns" hidden>
-          <h4>Insert game ID or leave it empty for random game</h4>
-          <input required type="number" id="gameId">
-          <button id="send-game-id-btn" class="btn">OK</button>
+          <!-- Set up a new game with required parameters -->
+          <div id="set-up-new-game" class="setup-params" hidden>
+            <div>
+              <h4>Insert the size of the game board</h4>
+              <input required type="number" id="boardSize">
+              <h4>Insert the number of ships</h4>
+              <input required type="number" id="shipsNum">
+              <h4>Insert the amount of ETH of the grand prize</h4>
+              <input required type="number" id="grandPrize">
+              <button id="send-game-condition-btn" class="btn">OK</button>
+            </div>
+          </div>
+
+          <!-- Join an existing game -->
+          <div id="set-up-join-game" class="setup-btns" hidden>
+            <h4>Insert game ID or leave it empty for random game</h4>
+            <input required type="number" id="gameId">
+            <button id="send-game-id-btn" class="btn">OK</button>
+          </div>
         </div>
       </div>
     </div>

@@ -66,14 +66,14 @@ body {
 
 .setup-btns{
   position: absolute;
-  bottom: 15em;
-  left: 52em;
+  bottom: 10em;
+  left: 32em;
 }
 
 .setup-params {
   position: absolute;
-  bottom: 5em;
-  left: 50em;
+  bottom: 2em;
+  left: 32em;
 }
 
 .splash-btn:first-child {
