@@ -69,11 +69,25 @@
     <!-- Game page -->
     <div id="game-page" hidden>
       <div class="container">
+        <div class="player p1">
+          Player 1
+          <div class="connected">Connected</div>
+          <div class="ready">Ready</div>
+        </div>
+        
+        <div class="player p2">
+          Player 2
+          <div class="connected">Connected</div>
+          <div class="ready">Ready</div>
+        </div>
+      </div>
+      <div id="game-boards" class="container">
+        <div id='user-grid' class="battleship-grid grid-user"></div>
+        <div id='opponent-grid' class="battleship-grid grid-opponent"></div>
+      </div>
+      <div class="container">
         <h1 id="wait-game" class="wait-game-label"> </h1>
-        <button id="quit-game-btn" class="btn splash-btn quit">Quit</button>
-        <div id="game-boards" hidden>
-          <div class="battleship-grid grid-user"></div>
-          <div class="battleship-grid grid-opponent"></div>
+        <div id="ships-board" hidden>
           <div class="grid-display">
             <div class="ship destroyer-container" draggable="true">
               <div id="destroyer-0"></div>
@@ -107,10 +121,11 @@
       </div>
       <div class="container hidden-info">
         <div class="setup-buttons" id="game-btns" hidden>
-          <button id="start" class="btn">Start Game</button>
-          <button id="rotate" class="btn">Rotate Your Ships</button>
+          <button id="start" class="btn splash-btn">Start Game</button>
+          <button id="rotate" class="btn splash-btn">Rotate Your Ships</button>
         </div>
       </div>
+      <button id="quit-game-btn" class="btn splash-btn quit">Quit</button>
     </div>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
