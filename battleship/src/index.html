@@ -68,7 +68,7 @@
 
     <!-- Game page -->
     <div id="game-page" hidden>
-      <div class="container">
+      <div id="players-info" class="container">
         <div class="player p1">
           Player 1
           <div class="connected">Connected</div>
@@ -81,10 +81,12 @@
           <div class="ready">Ready</div>
         </div>
       </div>
+
       <div id="game-boards" class="container">
         <div id='user-grid' class="battleship-grid grid-user"></div>
         <div id='opponent-grid' class="battleship-grid grid-opponent"></div>
       </div>
+      
       <div class="container">
         <h1 id="wait-game" class="wait-game-label"> </h1>
         <div id="ships-board" hidden>

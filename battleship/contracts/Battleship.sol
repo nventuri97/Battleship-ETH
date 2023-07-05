@@ -20,7 +20,7 @@ contract Battleship {
 
   event returnGameId(address indexed _from, uint256 _gameId);
   event gameStarted(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _grandPrize);
-  event gameReady(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _startTime);
+  event gameReady(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _boardSize, uint256 _startTime);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
   error eventError(string _message);
@@ -69,7 +69,7 @@ contract Battleship {
     game.player2=msg.sender;
     game.playable=false;
     deleteElementFromArray(_gameId);
-    emit gameReady(_gameId, game.player1, msg.sender, START_TIME);
+    emit gameReady(_gameId, game.player1, msg.sender, game.boardSize, START_TIME);
   }
 
   function joinRandomGame() public {
@@ -88,7 +88,7 @@ contract Battleship {
       game.player2=msg.sender;
       game.playable=false;
       deleteElementFromArray(index);
-      emit gameReady(index, game.player1, msg.sender, START_TIME);
+      emit gameReady(index, game.player1, msg.sender, game.boardSize, START_TIME);
     } else {
       revert eventError("Something goes wrong, try again!");
     }

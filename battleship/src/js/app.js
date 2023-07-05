@@ -103,7 +103,7 @@ App = {
     // Check to validate the correctness of the parameters from the creation of new game view
     if(!boardSize || !grandPrize)
       return alert("An input parameters is empty, check board size or grand size!");
-    else if(boardSize <= 5 || boardSize>12)
+    else if(boardSize < 5 || boardSize>12)
       return alert("The board size has to be grather or equals to 5 and equals or minor to 12, change it!");
     else if(grandPrize<=0)
       return alert("The grand prize has to be grather than 0, change it!");
@@ -120,9 +120,9 @@ App = {
         $('#welcome-page').hide();
         $('#game-page').show();
         document.getElementById("wait-game").innerText="Game with ID "+ gameId + " created. Wait for opponents";
+        setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show();$('#ships-board').show(); $('#game-btns').show() }, 15*1000);
         App.createBoard(user_grid, userSquares, boardSize);
         App.createBoard(opponent_grid, opponentSquares, boardSize);
-        setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show(); $('#ships-board').show(); $('#game-btns').show() }, 15*1000);
       }
     }).catch(function (err) {
       console.error(err);
@@ -151,10 +151,13 @@ App = {
         }
         else {
           waitTime=logArray.logs[0].args._startTime.toNumber();
+          boardSize=logArray.logs[0].args._boardSize.toNumber();
           $('#welcome-page').hide();
           $('#game-page').show();
           document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
-          setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show(); $('#ships-board').show(); $('#game-btns').show() }, waitTime*1000);
+          setTimeout(() => { $('#wait-game').hide(); $('game-boards').show(); $('#ships-board').show(); $('#game-btns').show() }, waitTime*1000);
+          App.createBoard(user_grid, userSquares, boardSize);
+          App.createBoard(opponent_grid, opponentSquares, boardSize);
         }
       }).catch(function (err) {
         console.error(err);
@@ -173,10 +176,13 @@ App = {
         }
         else {
           waitTime=logArray.logs[0].args._startTime.toNumber();
+          boardSize=logArray.logs[0].args._boardSize.toNumber();
           $('#welcome-page').hide();
           $('#game-page').show();
           document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
-          setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show( ); $('#ships-board').show(); $('#game-btns')}, waitTime*1000);
+          setTimeout(() => { $('#wait-game').hide(); $('#ships-board').show(); $('#game-btns')}, waitTime*1000);
+          App.createBoard(user_grid, userSquares, boardSize);
+          App.createBoard(opponent_grid, opponentSquares, boardSize);
         }
       }).catch(function (err) {
         console.error(err);
