@@ -2,7 +2,6 @@ var gameId = null;
 var grandPrize = null;
 var boardSize = null;
 var board = null;
-var shipsNum = null;
 var angle=0;
 const user_grid=document.getElementById('user-grid');
 const opponent_grid=document.getElementById('opponent-grid');
@@ -74,7 +73,6 @@ App = {
     rotate_btn.addEventListener('click', App.rotate);
 
     $(document).on('input', "#boardSize", (event) => boardSize = event.target.value);
-    $(document).on('input', "#shipsNum", (event) => shipsNum = event.target.value);
     $(document).on('input', "#grandPrize", (event) => grandPrize = event.target.value);
 
     $(document).on('input', '#gameId', (event) => gameId = event.target.value);
@@ -103,18 +101,16 @@ App = {
 
   setGameCondition: function(){
     // Check to validate the correctness of the parameters from the creation of new game view
-    if(!boardSize || !grandPrize || !shipsNum)
-      return alert("An input parameters is empty, check board size, ships number or grand size!");
+    if(!boardSize || !grandPrize)
+      return alert("An input parameters is empty, check board size or grand size!");
     else if(boardSize <= 5 || boardSize>12)
       return alert("The board size has to be grather or equals to 5 and equals or minor to 12, change it!");
-    else if(shipsNum<=0)
-      return alert("The number of ship has to be grather than 0, change it!");
     else if(grandPrize<=0)
       return alert("The grand prize has to be grather than 0, change it!");
 
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
-      return battleshipInstance.createGame(grandPrize, boardSize, shipsNum)
+      return battleshipInstance.createGame(grandPrize, boardSize)
     }).then(async function (logArray) {
       gameId = logArray.logs[0].args._gameId.toNumber();
       if (gameId < 0) {

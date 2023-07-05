@@ -10,7 +10,6 @@ contract Battleship {
     address player2;
     uint256 grandPrize;
     uint256 boardSize;
-    uint256 numberOfShips;
     uint256 remainShipsP1;
     uint256 remainShipsP2;
     address playerTurn;
@@ -44,15 +43,14 @@ contract Battleship {
     return gameId++;
   }
 
-  function createGame(uint256 _grandPrize, uint256 _boardSize, uint256 _numberOfShips) public {
+  function createGame(uint256 _grandPrize, uint256 _boardSize) public {
     game=Game(getGameId(), 
               msg.sender, 
               address(0),
               _grandPrize,
               _boardSize,
-              _numberOfShips,
-              _numberOfShips,
-              _numberOfShips,
+              5,
+              5,
               address(0),
               0,
               address(0),
