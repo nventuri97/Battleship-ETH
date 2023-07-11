@@ -20,7 +20,7 @@ contract Battleship {
 
   event returnGameId(address indexed _from, uint256 _gameId);
   event gameStarted(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _grandPrize);
-  event gameReady(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _boardSize, uint256 _startTime);
+  event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grantPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
   error eventError(string _message);
@@ -64,12 +64,13 @@ contract Battleship {
   function joinGameByGameId(uint256 _gameId) public {
     if(games[_gameId].gameId==0)
       revert eventError("No existing game with this ID ");
-
+    
+    if(!games[_gameId].playable){
+      revert eventError("Selected game is not playable");
+    }
+      
     game=games[_gameId];
-    game.player2=msg.sender;
-    game.playable=false;
-    deleteElementFromArray(_gameId);
-    emit gameReady(_gameId, game.player1, msg.sender, game.boardSize, START_TIME);
+    emit gameInfo(_gameId, game.boardSize, game.grandPrize);
   }
 
   function joinRandomGame() public {
@@ -85,14 +86,19 @@ contract Battleship {
     
     game=games[index];
     if(game.playable){
-      game.player2=msg.sender;
-      game.playable=false;
-      deleteElementFromArray(index);
-      emit gameReady(index, game.player1, msg.sender, game.boardSize, START_TIME);
+      emit gameInfo(game.gameId, game.boardSize, game.grandPrize);
     } else {
       revert eventError("Something goes wrong, try again!");
     }
     
+  }
+
+  function setOpponent(uint256 _gameId) public{
+    game=games[_gameId];
+
+    game.player2=msg.sender;
+    game.playable=false;
+    emit gameStarted(_gameId, game.player1, game.player2, game.grandPrize);
   }
 
   function deleteElementFromArray(uint256 _element) internal {
