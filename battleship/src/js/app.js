@@ -1,14 +1,46 @@
+//Welcome page object
+const welcomePage=document.querySelector('#welcome-page');
+const homeBtn=document.querySelector('#back-home-btn');
+const setUpNewGameDiv=document.querySelector('#set-up-new-game');
+const sendGameConditionBtn=document.querySelector('#send-game-condition-btn');
+const setUpJoinGameDiv=document.querySelector('#set-up-join-game');
+const createNewGameBtn=document.querySelector('#create-new-game-btn');
+const joinGameBtn=document.querySelector('#join-game-btn');
+const sendGameIdBtn=document.querySelector('#send-game-id-btn');
+const acceptGameConditionDiv=document.querySelector('#accept-game-condition');
+const acceptGameConditionBtn=document.querySelector('#accept-game-condition-btn');
+const quitGameConditionBtn=document.querySelector('#quit-game-condition-btn');
+
+//Game page object
+const gamePage=document.querySelector('#game-page');
+const user_grid=document.getElementById('user-grid');
+const opponent_grid=document.getElementById('opponent-grid');
+const rotate_btn=document.querySelector('#rotate');
+const grid_display=document.querySelector('.grid-display');
+const ships=Array.from(grid_display.children);
+const allUserBlocks=document.querySelectorAll('#user-grid div');
+const quitBtn=document.querySelector('#quit-game-btn');
+
 var gameId = null;
 var grandPrize = null;
 var boardSize = null;
 var board = null;
 var angle=0;
-const user_grid=document.getElementById('user-grid');
-const opponent_grid=document.getElementById('opponent-grid');
-const rotate_btn=document.querySelector('#rotate');
-const grid_display=document.querySelector('.grid-display');
 const userSquares=[];
 const opponentSquares=[];
+var draggedShip;
+var ready=false;
+var opponentReady=false;
+let isHorizontal = true;
+let allShipsPlaced=false;
+let shotFire=-1
+let userConnectedPlayers=[false, false]
+let opponentConnectedPlayers=[false, false]
+let userReadyPlayers=[false, false]
+let opponentReadyPlayers=[false, false]
+
+//Ships
+var shipArray = []
 
 App = {
   web3Provider: null,
@@ -64,13 +96,21 @@ App = {
   },
 
   bindEvents: async function () {
-    $(document).on('click', '#back-home-btn', App.backHome);
-    $(document).on('click', '#create-new-game-btn', App.createNewGame);
-    $(document).on('click', '#join-game-btn', App.joinGame);
-    $(document).on('click', '#send-game-condition-btn', App.setGameCondition);
-    $(document).on('click', '#send-game-id-btn', App.findGame);
-    $(document).on('click', "#quit-game-btn", App.quitGame);
+    homeBtn.addEventListener('click', App.backHome);
+    createNewGameBtn.addEventListener('click', App.createNewGame);
+    joinGameBtn.addEventListener('click', App.joinGame);
+    sendGameConditionBtn.addEventListener('click', App.setGameCondition);
+    sendGameIdBtn.addEventListener('click', App.findGame);
+    acceptGameConditionBtn.addEventListener('click', App.acceptGameCondition);
+    quitBtn.addEventListener('click', App.quitGame);
     rotate_btn.addEventListener('click', App.rotate);
+
+    ships.forEach(ship => ship.addEventListener('dragstart', App.dragStart));
+    allUserBlocks.forEach(userBlock => {
+      userBlock.addEventListener('dragover', App.dragOver);
+      userBlock.addEventListener('dragover', App.dragEnter);
+      userBlock.addEventListener('drop', App.dragDrop);
+    })
 
     $(document).on('input', "#boardSize", (event) => boardSize = event.target.value);
     $(document).on('input', "#grandPrize", (event) => grandPrize = event.target.value);
@@ -79,24 +119,27 @@ App = {
   },
 
   backHome: function() {
-    $('#game-page').hide();
-    $('#welcome-page').show();
-    $('#set-up-new-game').hide();
-    $('#set-up-join-game').hide();
-    $('#create-new-game-btn').show();
-    $('#join-game-btn').show();
+    gamePage.style.display='none';
+    welcomePage.style.display='block';
+    setUpNewGameDiv.style.display='none';
+    setUpJoinGameDiv.style.display='none';
+    createNewGameBtn.style.display='block';
+    joinGameBtn.style.display='block';
+    acceptGameConditionDiv.style.display='none';
   },
 
   createNewGame: function() {
-    $('#join-game-btn').hide();
-    $('#create-new-game-btn').hide();
-    $('#set-up-new-game').show();
+    console.log("Creating new game...")
+    joinGameBtn.style.display='none';
+    createNewGameBtn.style.display='none';
+    setUpNewGameDiv.style.display='block';
   },
 
   joinGame: function() {
-    $('#create-new-game-btn').hide();
-    $('#join-game-btn').hide();
-    $('#set-up-join-game').show();
+    console.log("Joining an existing game...")
+    createNewGameBtn.style.display='none';
+    joinGameBtn.style.display='none';
+    setUpJoinGameDiv.style.display='block';
   },
 
   setGameCondition: function(){
@@ -108,6 +151,43 @@ App = {
     else if(grandPrize<=0)
       return alert("The grand prize has to be grather than 0, change it!");
 
+    boardSize=parseInt(boardSize)
+    shipArray=[{
+      name: 'destroyer',
+      directions: [
+        [0, 1],
+        [0, boardSize]
+      ]
+    },
+    {
+      name: 'submarine',
+      directions: [
+        [0, 1, 2],
+        [0, boardSize, boardSize*2]
+      ]
+    },
+    {
+      name: 'cruiser',
+      directions: [
+        [0, 1, 2],
+        [0, boardSize, boardSize*2]
+      ]
+    },
+    {
+      name: 'battleship',
+      directions: [
+        [0, 1, 2, 3],
+        [0, boardSize, boardSize*2, boardSize*3]
+      ]
+    },
+    {
+      name: 'carrier',
+      directions: [
+        [0, 1, 2, 3, 4],
+        [0, boardSize, boardSize*2, boardSize*3, boardSize*4]
+      ]
+    },]
+
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
       return battleshipInstance.createGame(grandPrize, boardSize)
@@ -117,16 +197,20 @@ App = {
         console.error("Something went wrong, game id is negative!");
       }
       else {
-        $('#welcome-page').hide();
-        $('#game-page').show();
-        document.getElementById("wait-game").innerText="Game with ID "+ gameId + " created. Wait for opponents";
-        setTimeout(() => { $('#wait-game').hide(); $('#game-boards').show();$('#ships-board').show(); $('#game-btns').show() }, 15*1000);
+        welcomePage.style.display='none';
+        // setUpNewGameDiv.style.display='none';
+        gamePage.style.display='block';
+        document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
+        $('#whose-go').hide();
         App.createBoard(user_grid, userSquares, boardSize);
         App.createBoard(opponent_grid, opponentSquares, boardSize);
       }
     }).catch(function (err) {
       console.error(err);
     });
+    userConnectedPlayers[0]=true;
+    // opponentConnectedPlayers[1]=true;
+    App.playerConnection();
   },
 
   createBoard: function(grid, squares, width){
@@ -146,18 +230,17 @@ App = {
         return battleshipInstance.joinRandomGame();
       }).then(async function (logArray){
         gameId = logArray.logs[0].args._gameId.toNumber();
+        boardSize = logArray.logs[0].args._boardSize.toNumber();
+        grandPrize = logArray.logs[0].args._grandPrize.toNumber();
         if (gameId < 0) {
           console.error("Something went wrong, game id is negative!");
         }
         else {
-          waitTime=logArray.logs[0].args._startTime.toNumber();
-          boardSize=logArray.logs[0].args._boardSize.toNumber();
-          $('#welcome-page').hide();
-          $('#game-page').show();
-          document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
-          setTimeout(() => { $('#wait-game').hide(); $('game-boards').show(); $('#ships-board').show(); $('#game-btns').show() }, waitTime*1000);
-          App.createBoard(user_grid, userSquares, boardSize);
-          App.createBoard(opponent_grid, opponentSquares, boardSize);
+          setUpJoinGameDiv.style.display='none';
+          acceptGameConditionDiv.style.display='block';
+          document.querySelector('#game-id-cond').innerText='GAME ID: '+gameId;
+          document.querySelector('#board-size-cond').innerText='Board size: '+boardSize;
+          document.querySelector('#grand-prize-cond').innerText='Grand prize: '+grandPrize+' ETH';
         }
       }).catch(function (err) {
         console.error(err);
@@ -175,21 +258,35 @@ App = {
           console.error("Something went wrong, game id is negative!");
         }
         else {
-          waitTime=logArray.logs[0].args._startTime.toNumber();
-          boardSize=logArray.logs[0].args._boardSize.toNumber();
-          $('#welcome-page').hide();
-          $('#game-page').show();
-          document.getElementById("wait-game").innerText="Game with ID "+ gameId + " starts in "+waitTime+" seconds";
-          setTimeout(() => { $('#wait-game').hide(); $('#ships-board').show(); $('#game-btns')}, waitTime*1000);
-          App.createBoard(user_grid, userSquares, boardSize);
-          App.createBoard(opponent_grid, opponentSquares, boardSize);
+          setUpJoinGameDiv.style.display='none';
+          acceptGameConditionDiv.style.display='block';
+          document.querySelector('#game-id-cond').innerText='GAME ID: '+gameId;
+          document.querySelector('#board-size-cond').innerText='Board size: '+boardSize;
+          document.querySelector('#grand-prize-cond').innerText='Grand prize: '+grandPrize+' ETH';
         }
       }).catch(function (err) {
         console.error(err);
       });
+      
     }
+    
+  },
 
-    $('#set-up-join-game').hide();
+  acceptGameCondition: function(){
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance=instance;
+      return battleshipInstance.setOpponent(gameId);
+    }).then(async function (logArray){
+      welcomePage.style.display='none';
+      gamePage.style.display='block';
+      App.createBoard(user_grid, userSquares, boardSize);
+      App.createBoard(opponent_grid, opponentSquares, boardSize);
+    }).catch(function (err) {
+      console.error(err);
+    });
+    opponentConnectedPlayers[0]=true;
+    userConnectedPlayers[1]=true;
+    App.playerConnection();
   },
 
   quitGame: function(){
@@ -197,12 +294,73 @@ App = {
   },
 
   rotate: function(){
-    const ships=Array.from(grid_display.children)
     ships.forEach(ship => ship.style.transform=`rotate(${90-angle}deg)`)
     if(angle===0)
       angle=90;
     else
       angle=0;
+  },
+
+  dragStart: function() {
+    draggedShip = this
+    draggedShipLength = this.childNodes.length
+  },
+
+  dragOver: function(e) {
+    e.preventDefault()
+  },
+
+  dragEnter: function(e) {
+    e.preventDefault()
+  },
+
+  dragDrop: function() {
+    let shipNameWithLastId = draggedShip.lastChild.id
+    let shipClass = shipNameWithLastId.slice(0, -2)
+
+    let lastShipIndex = parseInt(shipNameWithLastId.substr(-1))
+    let shipLastId = lastShipIndex + parseInt(this.dataset.id)
+
+    const notAllowedHorizontal = [0,10,20,30,40,50,60,70,80,90,1,11,21,31,41,51,61,71,81,91,2,22,32,42,52,62,72,82,92,3,13,23,33,43,53,63,73,83,93]
+    const notAllowedVertical = [99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60]
+    
+    let newNotAllowedHorizontal = notAllowedHorizontal.splice(0, 10 * lastShipIndex)
+    let newNotAllowedVertical = notAllowedVertical.splice(0, 10 * lastShipIndex)
+
+    selectedShipIndex = parseInt(selectedShipNameWithIndex.substr(-1))
+
+    shipLastId = shipLastId - selectedShipIndex
+    // console.log(shipLastId)
+
+    if (isHorizontal && !newNotAllowedHorizontal.includes(shipLastId)) {
+      for (let i=0; i < draggedShipLength; i++) {
+        let directionClass
+        if (i === 0) directionClass = 'start'
+        if (i === draggedShipLength - 1) directionClass = 'end'
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass)
+      }
+    //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
+    //index-1 , index-2 and so on, the ship will rebound back to the displayGrid.
+    } else if (!isHorizontal && !newNotAllowedVertical.includes(shipLastId)) {
+      for (let i=0; i < draggedShipLength; i++) {
+        let directionClass
+        if (i === 0) directionClass = 'start'
+        if (i === draggedShipLength - 1) directionClass = 'end'
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + width*i].classList.add('taken', 'vertical', directionClass, shipClass)
+      }
+    } else return
+
+    displayGrid.removeChild(draggedShip)
+    if(!displayGrid.querySelector('.ship')) allShipsPlaced = true
+  },
+
+  playerConnection: function(){
+    for(let i=0; i<userConnectedPlayers.length; i++)
+      if(userConnectedPlayers[i])
+        document.querySelector(`.p${i+1} .connected`).classList.toggle('active');
+    for(let i=0; i<opponentConnectedPlayers.length; i++)
+      if(opponentConnectedPlayers[i])
+        document.querySelector(`.p${i+1} .connected`).classList.toggle('active');
   }
 };
 
