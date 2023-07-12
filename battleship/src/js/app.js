@@ -17,8 +17,12 @@ const user_grid=document.getElementById('user-grid');
 const opponent_grid=document.getElementById('opponent-grid');
 const rotate_btn=document.querySelector('#rotate');
 const grid_display=document.querySelector('.grid-display');
-const ships=Array.from(grid_display.children);
-const allUserBlocks=document.querySelectorAll('#user-grid div');
+const ships=document.querySelectorAll('.ship');
+const destroyer = document.querySelector('.destroyer-container')
+const submarine = document.querySelector('.submarine-container')
+const cruiser = document.querySelector('.cruiser-container')
+const battleship = document.querySelector('.battleship-container')
+const carrier = document.querySelector('.carrier-container')
 const quitBtn=document.querySelector('#quit-game-btn');
 
 var gameId = null;
@@ -28,7 +32,9 @@ var board = null;
 var angle=0;
 const userSquares=[];
 const opponentSquares=[];
-var draggedShip;
+let draggedShip;
+let draggedShipLength;
+let selectedShipNameWithIndex;
 var ready=false;
 var opponentReady=false;
 let isHorizontal = true;
@@ -87,9 +93,6 @@ App = {
 
       // Set the web3.js provider for our contract to the provider defined in the previous function
       App.contracts.Battleship.setProvider(App.web3Provider);
-
-      // Use the contract to retrieve and mark the adopted pets
-      //return App.markAdopted();
     });
 
     return App.bindEvents();
@@ -105,12 +108,12 @@ App = {
     quitBtn.addEventListener('click', App.quitGame);
     rotate_btn.addEventListener('click', App.rotate);
 
-    ships.forEach(ship => ship.addEventListener('dragstart', App.dragStart));
-    allUserBlocks.forEach(userBlock => {
-      userBlock.addEventListener('dragover', App.dragOver);
-      userBlock.addEventListener('dragover', App.dragEnter);
-      userBlock.addEventListener('drop', App.dragDrop);
-    })
+    ships.forEach(ship => {
+      ship.addEventListener('dragstart', App.dragStart)
+      ship.addEventListener('mousedown', (e) => {
+        selectedShipNameWithIndex = e.target.id;
+      })
+    });
 
     $(document).on('input', "#boardSize", (event) => boardSize = event.target.value);
     $(document).on('input', "#grandPrize", (event) => grandPrize = event.target.value);
@@ -204,6 +207,10 @@ App = {
         $('#whose-go').hide();
         App.createBoard(user_grid, userSquares, boardSize);
         App.createBoard(opponent_grid, opponentSquares, boardSize);
+        userSquares.forEach(square => {
+          square.addEventListener('dragover', App.dragOver);
+          square.addEventListener('drop', App.dragDrop);
+        });
       }
     }).catch(function (err) {
       console.error(err);
@@ -281,8 +288,13 @@ App = {
       gamePage.style.display='block';
       App.createBoard(user_grid, userSquares, boardSize);
       App.createBoard(opponent_grid, opponentSquares, boardSize);
+      userSquares.forEach(square => {
+        square.addEventListener('dragover', App.dragOver);
+        square.addEventListener('drop', App.dragDrop);
+      });
     }).catch(function (err) {
       console.error(err);
+      //I have to add an event to handle the page during an error
     });
     opponentConnectedPlayers[0]=true;
     userConnectedPlayers[1]=true;
@@ -294,64 +306,95 @@ App = {
   },
 
   rotate: function(){
-    ships.forEach(ship => ship.style.transform=`rotate(${90-angle}deg)`)
-    if(angle===0)
-      angle=90;
-    else
-      angle=0;
+    if (isHorizontal) {
+      destroyer.classList.toggle('destroyer-container-vertical')
+      submarine.classList.toggle('submarine-container-vertical')
+      cruiser.classList.toggle('cruiser-container-vertical')
+      battleship.classList.toggle('battleship-container-vertical')
+      carrier.classList.toggle('carrier-container-vertical')
+      isHorizontal = false
+      // console.log(isHorizontal)
+      return
+    }
+    if (!isHorizontal) {
+      destroyer.classList.toggle('destroyer-container-vertical')
+      submarine.classList.toggle('submarine-container-vertical')
+      cruiser.classList.toggle('cruiser-container-vertical')
+      battleship.classList.toggle('battleship-container-vertical')
+      carrier.classList.toggle('carrier-container-vertical')
+      isHorizontal = true
+      // console.log(isHorizontal)
+      return
+    }
   },
 
   dragStart: function() {
-    draggedShip = this
-    draggedShipLength = this.childNodes.length
+    draggedShip = this;
+    draggedShipLength = this.childNodes.length;
   },
 
   dragOver: function(e) {
-    e.preventDefault()
-  },
-
-  dragEnter: function(e) {
-    e.preventDefault()
+    e.preventDefault();
   },
 
   dragDrop: function() {
-    let shipNameWithLastId = draggedShip.lastChild.id
-    let shipClass = shipNameWithLastId.slice(0, -2)
+    let shipNameWithLastId = draggedShip.lastChild.id;
+    console.log(shipNameWithLastId);
+    let shipClass = shipNameWithLastId.slice(0, -2);
 
-    let lastShipIndex = parseInt(shipNameWithLastId.substr(-1))
-    let shipLastId = lastShipIndex + parseInt(this.dataset.id)
+    let lastShipIndex = parseInt(shipNameWithLastId.substr(-1));
+    let shipLastId = lastShipIndex + parseInt(this.dataset.id);
 
-    const notAllowedHorizontal = [0,10,20,30,40,50,60,70,80,90,1,11,21,31,41,51,61,71,81,91,2,22,32,42,52,62,72,82,92,3,13,23,33,43,53,63,73,83,93]
-    const notAllowedVertical = [99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60]
+    //const notAllowedVertical = [99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60];
+
+    const notAllowedHorizontal=[];
+
+    for(let i=0;i<4;i++){
+      for(let j=0; j<boardSize; j++){
+        notAllowedHorizontal.push(i+boardSize*j);
+      }
+    }
+
+    const notAllowedVertical=[];
+    for(let i=0; i<4*boardSize;i++)
+      notAllowedVertical.push(boardSize*boardSize-(i+1));
+
+    console.log(notAllowedVertical);
     
-    let newNotAllowedHorizontal = notAllowedHorizontal.splice(0, 10 * lastShipIndex)
-    let newNotAllowedVertical = notAllowedVertical.splice(0, 10 * lastShipIndex)
+    let newNotAllowedHorizontal = notAllowedHorizontal.splice(0, boardSize * lastShipIndex);
+    let newNotAllowedVertical = notAllowedVertical.splice(0, boardSize * lastShipIndex);
 
-    selectedShipIndex = parseInt(selectedShipNameWithIndex.substr(-1))
+    selectedShipIndex = parseInt(selectedShipNameWithIndex.substr(-1));
 
-    shipLastId = shipLastId - selectedShipIndex
-    // console.log(shipLastId)
+    shipLastId = shipLastId - selectedShipIndex;
 
     if (isHorizontal && !newNotAllowedHorizontal.includes(shipLastId)) {
       for (let i=0; i < draggedShipLength; i++) {
-        let directionClass
-        if (i === 0) directionClass = 'start'
-        if (i === draggedShipLength - 1) directionClass = 'end'
-        userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass)
+        let directionClass;
+        if (i === 0) 
+          directionClass = 'start';
+        if (i === draggedShipLength - 1)
+          directionClass = 'end';
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass);
       }
     //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
     //index-1 , index-2 and so on, the ship will rebound back to the displayGrid.
     } else if (!isHorizontal && !newNotAllowedVertical.includes(shipLastId)) {
       for (let i=0; i < draggedShipLength; i++) {
-        let directionClass
-        if (i === 0) directionClass = 'start'
-        if (i === draggedShipLength - 1) directionClass = 'end'
-        userSquares[parseInt(this.dataset.id) - selectedShipIndex + width*i].classList.add('taken', 'vertical', directionClass, shipClass)
+        let directionClass;
+        if (i === 0)
+          directionClass = 'start';
+        if (i === draggedShipLength - 1)
+          directionClass = 'end';
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + boardSize*i].classList.add('taken', 'vertical', directionClass, shipClass);
       }
-    } else return
+    } else {
+      return;
+    }
 
-    displayGrid.removeChild(draggedShip)
-    if(!displayGrid.querySelector('.ship')) allShipsPlaced = true
+    grid_display.removeChild(draggedShip);
+    if(!grid_display.querySelector('.ship'))
+      allShipsPlaced = true;
   },
 
   playerConnection: function(){
