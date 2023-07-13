@@ -18,12 +18,13 @@ const opponent_grid=document.getElementById('opponent-grid');
 const rotate_btn=document.querySelector('#rotate');
 const grid_display=document.querySelector('.grid-display');
 const ships=document.querySelectorAll('.ship');
-const destroyer = document.querySelector('.destroyer-container')
-const submarine = document.querySelector('.submarine-container')
-const cruiser = document.querySelector('.cruiser-container')
-const battleship = document.querySelector('.battleship-container')
-const carrier = document.querySelector('.carrier-container')
+const destroyer = document.querySelector('.destroyer-container');
+const submarine = document.querySelector('.submarine-container');
+const cruiser = document.querySelector('.cruiser-container');
+const battleship = document.querySelector('.battleship-container');
+const carrier = document.querySelector('.carrier-container');
 const quitBtn=document.querySelector('#quit-game-btn');
+const startGameBtn=document.querySelector('#start');
 
 var gameId = null;
 var grandPrize = null;
@@ -44,9 +45,9 @@ let userConnectedPlayers=[false, false]
 let opponentConnectedPlayers=[false, false]
 let userReadyPlayers=[false, false]
 let opponentReadyPlayers=[false, false]
-
+const userBoardMatrix=[]
 //Ships
-var shipArray = []
+const shipArray = []
 
 App = {
   web3Provider: null,
@@ -107,6 +108,7 @@ App = {
     acceptGameConditionBtn.addEventListener('click', App.acceptGameCondition);
     quitBtn.addEventListener('click', App.quitGame);
     rotate_btn.addEventListener('click', App.rotate);
+    startGameBtn.addEventListener('click', App.startGame);
 
     ships.forEach(ship => {
       ship.addEventListener('dragstart', App.dragStart)
@@ -155,7 +157,7 @@ App = {
       return alert("The grand prize has to be grather than 0, change it!");
 
     boardSize=parseInt(boardSize)
-    shipArray=[{
+    shipArray.push({
       name: 'destroyer',
       directions: [
         [0, 1],
@@ -189,7 +191,7 @@ App = {
         [0, 1, 2, 3, 4],
         [0, boardSize, boardSize*2, boardSize*3, boardSize*4]
       ]
-    },]
+    },)
 
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
@@ -345,8 +347,6 @@ App = {
     let lastShipIndex = parseInt(shipNameWithLastId.substr(-1));
     let shipLastId = lastShipIndex + parseInt(this.dataset.id);
 
-    //const notAllowedVertical = [99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60];
-
     const notAllowedHorizontal=[];
 
     for(let i=0;i<4;i++){
@@ -404,6 +404,26 @@ App = {
     for(let i=0; i<opponentConnectedPlayers.length; i++)
       if(opponentConnectedPlayers[i])
         document.querySelector(`.p${i+1} .connected`).classList.toggle('active');
+  },
+
+  startGame: function(){
+    if(!allShipsPlaced){
+      return alert("Before starting the game place all your ship!");
+    }
+
+    for(let i=0; i<boardSize; i++){
+      for(let j=0; j<boardSize; j++){
+        let row=[];
+        if(userSquares[i*boardSize+j].classList.contains('taken')){
+          row[j]=1;
+        } else {
+          row[j]=0;
+        }
+        userBoardMatrix.push(row);
+      }
+    }
+    
+    
   }
 };
 
