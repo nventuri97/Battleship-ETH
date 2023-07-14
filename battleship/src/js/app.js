@@ -1,3 +1,5 @@
+const { errors } = require("web3");
+
 //Welcome page object
 const welcomePage=document.querySelector('#welcome-page');
 const homeBtn=document.querySelector('#back-home-btn');
@@ -41,13 +43,13 @@ var opponentReady=false;
 let isHorizontal = true;
 let allShipsPlaced=false;
 let shotFire=-1
-let userConnectedPlayers=[false, false]
-let opponentConnectedPlayers=[false, false]
-let userReadyPlayers=[false, false]
-let opponentReadyPlayers=[false, false]
-const userBoardMatrix=[]
+let userConnectedPlayers=[false, false];
+let opponentConnectedPlayers=[false, false];
+let userReadyPlayers=[false, false];
+let opponentReadyPlayers=[false, false];
+const userBoardMatrix=[];
 //Ships
-const shipArray = []
+const shipArray = [];
 
 App = {
   web3Provider: null,
@@ -202,24 +204,14 @@ App = {
         console.error("Something went wrong, game id is negative!");
       }
       else {
-        welcomePage.style.display='none';
-        // setUpNewGameDiv.style.display='none';
-        gamePage.style.display='block';
-        document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
-        $('#whose-go').hide();
-        App.createBoard(user_grid, userSquares, boardSize);
-        App.createBoard(opponent_grid, opponentSquares, boardSize);
-        userSquares.forEach(square => {
-          square.addEventListener('dragover', App.dragOver);
-          square.addEventListener('drop', App.dragDrop);
-        });
+        App.handleGameEvents();
       }
     }).catch(function (err) {
       console.error(err);
     });
-    userConnectedPlayers[0]=true;
-    // opponentConnectedPlayers[1]=true;
-    App.playerConnection();
+    // userConnectedPlayers[0]=true;
+    // // opponentConnectedPlayers[1]=true;
+    // App.playerConnection();
   },
 
   createBoard: function(grid, squares, width){
@@ -285,22 +277,11 @@ App = {
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
       return battleshipInstance.setOpponent(gameId);
-    }).then(async function (logArray){
-      welcomePage.style.display='none';
-      gamePage.style.display='block';
-      App.createBoard(user_grid, userSquares, boardSize);
-      App.createBoard(opponent_grid, opponentSquares, boardSize);
-      userSquares.forEach(square => {
-        square.addEventListener('dragover', App.dragOver);
-        square.addEventListener('drop', App.dragDrop);
-      });
-    }).catch(function (err) {
-      console.error(err);
-      //I have to add an event to handle the page during an error
-    });
-    opponentConnectedPlayers[0]=true;
-    userConnectedPlayers[1]=true;
-    App.playerConnection();
+    })
+    App.handleGameEvents();
+    // opponentConnectedPlayers[0]=true;
+    // userConnectedPlayers[1]=true;
+    // App.playerConnection();
   },
 
   quitGame: function(){
@@ -341,14 +322,13 @@ App = {
 
   dragDrop: function() {
     let shipNameWithLastId = draggedShip.lastChild.id;
-    console.log(shipNameWithLastId);
+    console.log("Placing "+shipNameWithLastId);
     let shipClass = shipNameWithLastId.slice(0, -2);
 
     let lastShipIndex = parseInt(shipNameWithLastId.substr(-1));
     let shipLastId = lastShipIndex + parseInt(this.dataset.id);
 
     const notAllowedHorizontal=[];
-
     for(let i=0;i<4;i++){
       for(let j=0; j<boardSize; j++){
         notAllowedHorizontal.push(i+boardSize*j);
@@ -358,8 +338,6 @@ App = {
     const notAllowedVertical=[];
     for(let i=0; i<4*boardSize;i++)
       notAllowedVertical.push(boardSize*boardSize-(i+1));
-
-    console.log(notAllowedVertical);
     
     let newNotAllowedHorizontal = notAllowedHorizontal.splice(0, boardSize * lastShipIndex);
     let newNotAllowedVertical = notAllowedVertical.splice(0, boardSize * lastShipIndex);
@@ -375,6 +353,8 @@ App = {
           directionClass = 'start';
         if (i === draggedShipLength - 1)
           directionClass = 'end';
+        if(userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.contains('taken'))
+          return;
         userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass);
       }
     //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
@@ -386,6 +366,8 @@ App = {
           directionClass = 'start';
         if (i === draggedShipLength - 1)
           directionClass = 'end';
+        if(userSquares[parseInt(this.dataset.id) - selectedShipIndex + boardSize*i].classList.contains('taken'))
+          return;
         userSquares[parseInt(this.dataset.id) - selectedShipIndex + boardSize*i].classList.add('taken', 'vertical', directionClass, shipClass);
       }
     } else {
@@ -421,9 +403,32 @@ App = {
         }
         userBoardMatrix.push(row);
       }
-    }
-    
-    
+    }    
+  },
+
+  handleGameEvents: async function(){
+    let currentBlock=null;
+
+    await battleshipInstance.allEvents(
+      (errors, events) => {
+        if(events.event=="returnGameId" || events.event=="gameStarted" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
+          currentBlock=events.event.blockNumber;
+
+          welcomePage.style.display='none';
+          gamePage.style.display='block';
+          if(events.event=="returnGameId"){
+            document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
+            $('#whose-go').hide();
+          }
+          App.createBoard(user_grid, userSquares, boardSize);
+          App.createBoard(opponent_grid, opponentSquares, boardSize);
+          userSquares.forEach(square => {
+            square.addEventListener('dragover', App.dragOver);
+            square.addEventListener('drop', App.dragDrop);
+          });
+        }
+      }
+    )
   }
 };
 
