@@ -27,12 +27,18 @@ const battleship = document.querySelector('.battleship-container');
 const carrier = document.querySelector('.carrier-container');
 const quitBtn=document.querySelector('#quit-game-btn');
 const startGameBtn=document.querySelector('#start');
+const playerTurn=document.querySelector('#whose-go');
+const userInfo=document.querySelector(`.p1`);
+const opponentInfo=document.querySelector(`.p2`);
 
 var gameId = null;
 var grandPrize = null;
 var boardSize = null;
-var board = null;
-var angle=0;
+var destroyerCount=0;
+var submarineCount=0;
+var cruiserCount=0;
+var battleshipCount=0;
+var carrierCount=0;
 const userSquares=[];
 const opponentSquares=[];
 let draggedShip;
@@ -42,11 +48,7 @@ var ready=false;
 var opponentReady=false;
 let isHorizontal = true;
 let allShipsPlaced=false;
-let shotFire=-1
-let userConnectedPlayers=[false, false];
-let opponentConnectedPlayers=[false, false];
-let userReadyPlayers=[false, false];
-let opponentReadyPlayers=[false, false];
+let shotFire=-1;
 const userBoardMatrix=[];
 //Ships
 const shipArray = [];
@@ -209,9 +211,6 @@ App = {
     }).catch(function (err) {
       console.error(err);
     });
-    // userConnectedPlayers[0]=true;
-    // // opponentConnectedPlayers[1]=true;
-    // App.playerConnection();
   },
 
   createBoard: function(grid, squares, width){
@@ -279,9 +278,6 @@ App = {
       return battleshipInstance.setOpponent(gameId);
     })
     App.handleGameEvents();
-    // opponentConnectedPlayers[0]=true;
-    // userConnectedPlayers[1]=true;
-    // App.playerConnection();
   },
 
   quitGame: function(){
@@ -379,15 +375,6 @@ App = {
       allShipsPlaced = true;
   },
 
-  playerConnection: function(){
-    for(let i=0; i<userConnectedPlayers.length; i++)
-      if(userConnectedPlayers[i])
-        document.querySelector(`.p${i+1} .connected`).classList.toggle('active');
-    for(let i=0; i<opponentConnectedPlayers.length; i++)
-      if(opponentConnectedPlayers[i])
-        document.querySelector(`.p${i+1} .connected`).classList.toggle('active');
-  },
-
   startGame: function(){
     if(!allShipsPlaced){
       return alert("Before starting the game place all your ship!");
@@ -403,7 +390,15 @@ App = {
         }
         userBoardMatrix.push(row);
       }
-    }    
+    }
+
+    const merkleTree=App.buildMerkleTree(userBoardMatrix);
+    console.log(merkleTree);
+    merkleRoot=merkleTree.merkleRoot;    
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance=instance;
+      return battleshipInstance.setMerkleRoot(gameId, merkleRoot);
+    })
   },
 
   handleGameEvents: async function(){
@@ -411,14 +406,21 @@ App = {
 
     await battleshipInstance.allEvents(
       (errors, events) => {
-        if(events.event=="returnGameId" || events.event=="gameStarted" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
+        if(events.event=="gameCreated" || events.event=="gameJoined" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
+          
+          if(events.args._from==web3.eth.defaultAccount){
+            userInfo.querySelector('.connected').classList.toggle('active');
+          } else {
+            opponentInfo.querySelector('.connected').classList.toggle('active');
+          }
+          
           currentBlock=events.event.blockNumber;
 
           welcomePage.style.display='none';
           gamePage.style.display='block';
-          if(events.event=="returnGameId"){
+          if(events.event=="gameCreated"){
             document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
-            $('#whose-go').hide();
+            playerTurn.style.display='none';
           }
           App.createBoard(user_grid, userSquares, boardSize);
           App.createBoard(opponent_grid, opponentSquares, boardSize);
@@ -426,9 +428,81 @@ App = {
             square.addEventListener('dragover', App.dragOver);
             square.addEventListener('drop', App.dragDrop);
           });
+        } else if(events.event=="gameReady" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
+          if(events.args._merkleRoot==merkleRoot){
+            console.log("I'm in the user");
+            userInfo.querySelector('.ready').classList.toggle('active');
+          } else {
+            console.log("I'm in the opponent");
+            opponentInfo.querySelector('.ready').classList.toggle('active');
+          }
+          console.log(events.args._merkleRoot);
+          
+          if(userInfo.querySelector('.ready').classList.contains('active') &&
+            opponentInfo.querySelector('.ready').classList.contains('active')){
+            playerTurn.style.display='block';
+            if(web3.eth.defaultAccount==events.args._playerTurn){
+              playerTurn.innerText='Your go';
+            } else {
+              playerTurn.innerText='Opponent go';
+            }
+          }
         }
       }
     )
+  },
+
+  completeLeavesWithEmptyValues: function(leaves) {
+    const nextPowerOfTwo = Math.pow(2, Math.ceil(Math.log2(leaves.length)));
+    const completedLeaves = [...leaves];
+    
+    while (completedLeaves.length < nextPowerOfTwo) {
+      completedLeaves.push(window.web3Utils.keccak256("")); // Aggiungi foglie vuote
+    }
+    
+    return completedLeaves;
+  },
+
+  //Function to build the Merkle tree
+  buildMerkleTree: function(userBoardMatrix) {
+    const leafHashes = userBoardMatrix.map(row => window.web3Utils.keccak256(JSON.stringify(row)));
+    const completedLeafHashes = App.completeLeavesWithEmptyValues(leafHashes);
+    const tree = [...completedLeafHashes];
+
+    let levelHashes = completedLeafHashes;
+    while (levelHashes.length > 1) {
+      const newLevelHashes = [];
+      for (let i = 0; i < levelHashes.length; i += 2) {
+        const combinedData = levelHashes[i] + levelHashes[i + 1];
+        const combinedHash = window.web3Utils.keccak256(combinedData);
+        newLevelHashes.push(combinedHash);
+      }
+      tree.push(...newLevelHashes);
+      levelHashes = newLevelHashes;
+    }
+
+    const merkleRoot = tree[tree.length - 1];
+    return {
+      merkleRoot: merkleRoot,
+      tree: tree
+    };
+  },
+
+  //Function to generate the Merkle Proof
+  generateMerkleProof: function(tree, index) {
+    const proof = [];
+    let levelIndex = index;
+  
+    for (let i = 0; i < tree.length - 1; i += 2) {
+      if (levelIndex % 2 === 1) {
+        proof.push(tree[i]);
+      } else if (levelIndex < tree.length - 1) {
+        proof.push(tree[i + 1]);
+      }
+      levelIndex = Math.floor(levelIndex / 2);
+    }
+  
+    return proof;
   }
 };
 
