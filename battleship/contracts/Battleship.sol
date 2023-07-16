@@ -22,7 +22,7 @@ contract Battleship {
   event gameCreated(uint256 _gameId, address indexed _from);
   event gameJoined(uint256 _gameId, address indexed _from);
   event gameReady(uint256 _gameId, address _playerTurn, bytes32 _merkleRoot);
-  event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grantPrize);
+  event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
   error eventError(string _message);
