@@ -12,14 +12,16 @@ contract Battleship {
     uint256 boardSize;
     uint256 remainShipsP1;
     uint256 remainShipsP2;
-    address playerTurn;
+    bytes32 p1MerkleRoot;
+    bytes32 p2MerkleRoot;
     uint256 penaltyTimeout;
     address accusedPlayer;
     bool playable;
   }
 
-  event returnGameId(address indexed _from, uint256 _gameId);
-  event gameStarted(uint256 _gameId, address indexed _player1, address indexed _player2, uint256 _grandPrize);
+  event gameCreated(uint256 _gameId, address indexed _from);
+  event gameJoined(uint256 _gameId, address indexed _from);
+  event gameReady(uint256 _gameId, address _playerTurn, bytes32 _merkleRoot);
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grantPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
@@ -51,14 +53,15 @@ contract Battleship {
               _boardSize,
               5,
               5,
-              address(0),
+              0,
+              0,
               0,
               address(0),
               true);
     games[game.gameId]=game;
     availableGames.push(game.gameId);
     totalGames++;
-    emit returnGameId(msg.sender, game.gameId);
+    emit gameCreated(game.gameId, msg.sender);
   }
 
   function joinGameByGameId(uint256 _gameId) public {
@@ -98,7 +101,21 @@ contract Battleship {
 
     game.player2=msg.sender;
     game.playable=false;
-    emit gameStarted(_gameId, game.player1, game.player2, game.grandPrize);
+    emit gameJoined(_gameId, msg.sender);
+  }
+
+  function setMerkleRoot(uint256 _gameId, bytes32 _merkleRoot) public{
+    game=games[_gameId];
+
+    if(msg.sender==game.player1){
+      game.p1MerkleRoot=_merkleRoot;
+    } else if(msg.sender==game.player2) {
+      game.p2MerkleRoot=_merkleRoot;
+    } else {
+      revert eventError("Player address is not valid");
+    }
+
+    emit gameReady(_gameId, game.player1, _merkleRoot);
   }
 
   function deleteElementFromArray(uint256 _element) internal {
