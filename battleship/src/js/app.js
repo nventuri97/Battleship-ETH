@@ -254,6 +254,8 @@ App = {
         return battleshipInstance.joinGameByGameId(gameId);
       }).then(async function (logArray){
         gameId = logArray.logs[0].args._gameId.toNumber();
+        boardSize = logArray.logs[0].args._boardSize.toNumber();
+        grandPrize = logArray.logs[0].args._grandPrize.toNumber();
         if (gameId < 0) {
           console.error("Something went wrong, game id is negative!");
         }
@@ -437,7 +439,7 @@ App = {
             opponentInfo.querySelector('.ready').classList.toggle('active');
           }
           console.log(events.args._merkleRoot);
-          
+
           if(userInfo.querySelector('.ready').classList.contains('active') &&
             opponentInfo.querySelector('.ready').classList.contains('active')){
             playerTurn.style.display='block';
@@ -457,7 +459,7 @@ App = {
     const completedLeaves = [...leaves];
     
     while (completedLeaves.length < nextPowerOfTwo) {
-      completedLeaves.push(window.web3Utils.keccak256("")); // Aggiungi foglie vuote
+      completedLeaves.push(""); //Add the empty leaf
     }
     
     return completedLeaves;
@@ -473,8 +475,8 @@ App = {
     while (levelHashes.length > 1) {
       const newLevelHashes = [];
       for (let i = 0; i < levelHashes.length; i += 2) {
-        const combinedData = levelHashes[i] + levelHashes[i + 1];
-        const combinedHash = window.web3Utils.keccak256(combinedData);
+        const combinedData = levelHashes[i] ^ levelHashes[i + 1];
+        const combinedHash = window.web3Utils.soliditySha3(combinedData);
         newLevelHashes.push(combinedHash);
       }
       tree.push(...newLevelHashes);
