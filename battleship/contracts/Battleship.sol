@@ -24,8 +24,9 @@ contract Battleship {
   event gameReady(uint256 _gameId, address _playerTurn, bytes32 _merkleRoot);
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
+  event shotEvent(uint256 _gameId, address indexed _player, uint256 _shotSquareId);
+  event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
-  error eventError(string _message);
 
   //Array of all games present in the blockchain
   mapping(uint256 => Game) public games;
@@ -35,9 +36,6 @@ contract Battleship {
   uint256[] public availableGames;
 
   uint256 public totalGames=0;
-  uint256 public START_TIME=15;
-  uint256 internal nonce=0;
-  Game public game;
 
   constructor() {}
 
@@ -46,7 +44,7 @@ contract Battleship {
   }
 
   function createGame(uint256 _grandPrize, uint256 _boardSize) public {
-    game=Game(getGameId(), 
+    Game memory game=Game(getGameId(), 
               msg.sender, 
               address(0),
               _grandPrize,
@@ -65,14 +63,10 @@ contract Battleship {
   }
 
   function joinGameByGameId(uint256 _gameId) public {
-    if(games[_gameId].gameId==0)
-      revert eventError("No existing game with this ID ");
-    
-    if(!games[_gameId].playable){
-      revert eventError("Selected game is not playable");
-    }
+    require(games[_gameId].gameId != 0, "No existing game with this ID");
+    require(games[_gameId].playable, "Selected game is not playable");
       
-    game=games[_gameId];
+    Game memory game=games[_gameId];
     emit gameInfo(_gameId, game.boardSize, game.grandPrize);
   }
 
@@ -84,20 +78,16 @@ contract Battleship {
       i++;
     }
 
-    if(i==10)
-      revert eventError("Something goes wrong, try again!");
-    
-    game=games[index];
-    if(game.playable){
-      emit gameInfo(game.gameId, game.boardSize, game.grandPrize);
-    } else {
-      revert eventError("Something goes wrong, try again!");
-    }
-    
+    require(i < 10, "Something goes wrong, try again!");
+
+    Game memory game=games[index];
+    require(game.playable, "Something goes wrong, try again!");
+    emit gameInfo(game.gameId, game.boardSize, game.grandPrize);
   }
 
   function setOpponent(uint256 _gameId) public{
-    game=games[_gameId];
+    require(_gameId > 0, "Game id is negative!");
+    Game storage game=games[_gameId];
 
     game.player2=msg.sender;
     game.playable=false;
@@ -105,32 +95,58 @@ contract Battleship {
   }
 
   function setMerkleRoot(uint256 _gameId, bytes32 _merkleRoot) public{
-    game=games[_gameId];
+    require(_gameId > 0, "Game id is negative!");
+    Game storage game=games[_gameId];
 
     if(msg.sender==game.player1){
       game.p1MerkleRoot=_merkleRoot;
     } else if(msg.sender==game.player2) {
       game.p2MerkleRoot=_merkleRoot;
     } else {
-      revert eventError("Player address is not valid");
+      revert("Player address is not valid");
     }
 
     emit gameReady(_gameId, game.player1, _merkleRoot);
   }
 
+  function shot(uint256 _gameId, uint256 _shotSquareId) public{
+    require(_gameId > 0, "Game id is negative!");
+
+    Game memory game=games[_gameId];
+    if(msg.sender==game.player1)
+      emit shotEvent(_gameId, game.player2, _shotSquareId);
+    else
+      emit shotEvent(_gameId, game.player1, _shotSquareId);
+  }
+
+  function shotResult(uint256 _gameId, uint256 _shotResult, uint256 _shotSquareId, bytes32[] memory _merkleProof, bytes32 _merkleRoot) public {
+    require(_gameId > 0, "Game id is negative!");
+
+    Game memory game=games[_gameId];
+    address shoter;
+    if(msg.sender==game.player1){
+      shoter=game.player2;
+    } else {
+      shoter=game.player1;
+    }
+
+    emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId);
+  }
+
   function deleteElementFromArray(uint256 _element) internal {
-    for(uint256 i=0;i<availableGames.length;i++){
-      if(availableGames[i]==_element){
-        availableGames[i]=availableGames[availableGames.length-1];
-        availableGames.pop();
-        break;
-      }
+    for (uint256 i = 0; i < availableGames.length; i++) {
+        if (availableGames[i] == _element) {
+            if (i != availableGames.length - 1) {
+                availableGames[i] = availableGames[availableGames.length - 1];
+            }
+            availableGames.pop();
+            break;
+        }
     }
   }
 
-  function random() internal returns (uint256) {
-    uint256 randomnumber = uint(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % availableGames.length;
-    nonce++;
+  function random() internal view returns (uint256) {
+    uint256 randomnumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, block.coinbase))) % availableGames.length;
     return randomnumber;
   }
 }
