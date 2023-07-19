@@ -21,7 +21,7 @@ contract Battleship {
 
   event gameCreated(uint256 _gameId, address indexed _from);
   event gameJoined(uint256 _gameId, address indexed _from);
-  event gameReady(uint256 _gameId, address _playerTurn, bytes32 _merkleRoot);
+  event gameReady(uint256 _gameId, address indexed _playerTurn, address indexed _player);
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event shotEvent(uint256 _gameId, address indexed _player, uint256 _shotSquareId);
@@ -106,7 +106,7 @@ contract Battleship {
       revert("Player address is not valid");
     }
 
-    emit gameReady(_gameId, game.player1, _merkleRoot);
+    emit gameReady(_gameId, game.player1, msg.sender);
   }
 
   function shot(uint256 _gameId, uint256 _shotSquareId) public{
@@ -119,15 +119,19 @@ contract Battleship {
       emit shotEvent(_gameId, game.player1, _shotSquareId);
   }
 
-  function shotResult(uint256 _gameId, uint256 _shotResult, uint256 _shotSquareId, bytes32[] memory _merkleProof, bytes32 _merkleRoot) public {
+  function shotResult(uint256 _gameId, uint256 _shotResult, uint256 _sunk, uint256 _shotSquareId, bytes32[] memory _merkleProof) public {
     require(_gameId > 0, "Game id is negative!");
-
+    
     Game memory game=games[_gameId];
     address shoter;
     if(msg.sender==game.player1){
       shoter=game.player2;
+      if(_sunk==1)
+        game.remainShipsP1--;
     } else {
       shoter=game.player1;
+      if(_sunk==1)
+        game.remainShipsP2--;
     }
 
     emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId);
