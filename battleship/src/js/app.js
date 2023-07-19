@@ -44,11 +44,11 @@ const opponentSquares=[];
 let draggedShip;
 let draggedShipLength;
 let selectedShipNameWithIndex;
-var ready=false;
-var opponentReady=false;
 let isHorizontal = true;
 let allShipsPlaced=false;
+let userTurn=false;
 let shotFire=-1;
+let sunk=0;
 const userBoardMatrix=[];
 //Ships
 const shipArray = [];
@@ -383,18 +383,18 @@ App = {
     }
 
     for(let i=0; i<boardSize; i++){
+      let row=[];
       for(let j=0; j<boardSize; j++){
-        let row=[];
         if(userSquares[i*boardSize+j].classList.contains('taken')){
           row[j]=1;
         } else {
           row[j]=0;
         }
-        userBoardMatrix.push(row);
       }
+      userBoardMatrix.push(row);
     }
 
-    const merkleTree=App.buildMerkleTree(userBoardMatrix);
+    merkleTree=App.buildMerkleTree(userBoardMatrix);
     console.log(merkleTree);
     merkleRoot=merkleTree.merkleRoot;    
     App.contracts.Battleship.deployed().then(async function (instance){
@@ -409,49 +409,114 @@ App = {
     await battleshipInstance.allEvents(
       (errors, events) => {
         if(events.event=="gameCreated" || events.event=="gameJoined" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
-          
+          currentBlock=events.event.blockNumber;
           if(events.args._from==web3.eth.defaultAccount){
             userInfo.querySelector('.connected').classList.toggle('active');
+            welcomePage.style.display='none';
+            homeBtn.style.display='none';
+            gamePage.style.display='block';
+            if(events.event=="gameCreated"){
+              document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
+              playerTurn.style.display='none';
+            } else if (events.event=="gameJoined"){
+              opponentInfo.querySelector('.connected').classList.toggle('active');
+            }
+            App.createBoard(user_grid, userSquares, boardSize);
+            App.createBoard(opponent_grid, opponentSquares, boardSize);
           } else {
             opponentInfo.querySelector('.connected').classList.toggle('active');
-          }
-          
-          currentBlock=events.event.blockNumber;
-
-          welcomePage.style.display='none';
-          gamePage.style.display='block';
-          if(events.event=="gameCreated"){
-            document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
-            playerTurn.style.display='none';
-          }
-          App.createBoard(user_grid, userSquares, boardSize);
-          App.createBoard(opponent_grid, opponentSquares, boardSize);
-          userSquares.forEach(square => {
-            square.addEventListener('dragover', App.dragOver);
-            square.addEventListener('drop', App.dragDrop);
-          });
+          }        
+          if(userInfo.querySelector('.connected').classList.contains('active') &&
+            opponentInfo.querySelector('.connected').classList.contains('active')){
+              userSquares.forEach(square => {
+                square.addEventListener('dragover', App.dragOver);
+                square.addEventListener('drop', App.dragDrop);
+              });
+            }
         } else if(events.event=="gameReady" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
-          if(events.args._merkleRoot==merkleRoot){
-            console.log("I'm in the user");
+          currentBlock=events.event.blockNumber;
+          if(events.args._player==web3.eth.defaultAccount){
             userInfo.querySelector('.ready').classList.toggle('active');
           } else {
-            console.log("I'm in the opponent");
             opponentInfo.querySelector('.ready').classList.toggle('active');
           }
-          console.log(events.args._merkleRoot);
 
           if(userInfo.querySelector('.ready').classList.contains('active') &&
             opponentInfo.querySelector('.ready').classList.contains('active')){
             playerTurn.style.display='block';
             if(web3.eth.defaultAccount==events.args._playerTurn){
               playerTurn.innerText='Your go';
+              userTurn=true;
             } else {
               playerTurn.innerText='Opponent go';
             }
+            opponentSquares.forEach(square => {
+              square.addEventListener('click', App.shot)
+            });
+          }
+        } else if(events.event=='shotEvent' && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
+          currentBlock=events.event.blockNumber;
+
+          if(events.args._player==web3.eth.defaultAccount){
+            App.handleShot(events.args._shotSquareId);
+            
+          }
+        } else if(events.event=='shotResultEvent' && events.args._gameId.toNumber()==gameId && events.block!=currentBlock){
+          currentBlock=events.event.blockNumber;
+
+          if(events.args._shoter==web3.eth.defaultAccount){
+            shotResult=events.args._shotResult;
+            console.log(shotResult);
+            if(shotResult==1){
+              opponentSquares[events.args._shotSquareId].classList.toggle('boom');
+            } else {
+              opponentSquares[events.args._shotSquareId].classList.toggle('miss');
+            }
+            userTurn=false;
+            playerTurn.innerText='Opponent go';
           }
         }
       }
     )
+  },
+
+  shot: async function(){
+    const shotSquareId=this.dataset.id;
+    console.log("Shot square with ID ", shotSquareId);
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance=instance;
+      return battleshipInstance.shot(gameId, shotSquareId);
+    })
+  },
+
+  handleShot: function(shotSquareId){
+    const row=Math.floor(shotSquareId/boardSize);
+    const col=Math.floor(shotSquareId-row*boardSize);
+    // console.log("Row ", row);
+    // console.log("Col ", col);
+    if(userBoardMatrix[row][col]==1){
+      console.log("The value is ", userBoardMatrix[row][col])
+      shotFire=1;
+      userSquares[shotSquareId].classList.toggle('boom');
+    } else {
+      console.log("The value is ", userBoardMatrix[row][col])
+      shotFire=0;
+      userSquares[shotSquareId].classList.toggle('miss');
+    }
+
+    const merkleProof=App.generateMerkleProof(merkleTree.tree, shotSquareId);
+    console.log("The merkle prof is ", merkleProof);
+    console.log("Shot fire is ", shotFire);
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance=instance;
+      return battleshipInstance.shotResult(gameId, shotFire, sunk, shotSquareId, merkleProof);
+    }).then(async function (logArray) {
+      shotFire=-1;
+      playerTurn.innerText='Your go';
+    }).catch(function (err) {
+      //alert("ERROR: " + err.message);
+      console.log(err.message);
+    });
   },
 
   completeLeavesWithEmptyValues: function(leaves) {
@@ -459,7 +524,7 @@ App = {
     const completedLeaves = [...leaves];
     
     while (completedLeaves.length < nextPowerOfTwo) {
-      completedLeaves.push(""); //Add the empty leaf
+      completedLeaves.push(window.web3Utils.soliditySha3("")); //Add the empty leaf
     }
     
     return completedLeaves;
