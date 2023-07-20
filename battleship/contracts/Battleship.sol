@@ -25,7 +25,7 @@ contract Battleship {
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
   event shotEvent(uint256 _gameId, address indexed _player, uint256 _shotSquareId);
-  event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId);
+  event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId, string _sunk);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
 
   //Array of all games present in the blockchain
@@ -37,13 +37,15 @@ contract Battleship {
 
   uint256 public totalGames=0;
 
+  uint256 internal grandPrize=0;
+
   constructor() {}
 
   function getGameId() public returns (uint256) {
     return gameId++;
   }
 
-  function createGame(uint256 _grandPrize, uint256 _boardSize) public {
+  function createGame(uint256 _grandPrize, uint256 _boardSize) public payable {
     Game memory game=Game(getGameId(), 
               msg.sender, 
               address(0),
@@ -59,6 +61,7 @@ contract Battleship {
     games[game.gameId]=game;
     availableGames.push(game.gameId);
     totalGames++;
+    grandPrize+=msg.value;
     emit gameCreated(game.gameId, msg.sender);
   }
 
@@ -85,12 +88,13 @@ contract Battleship {
     emit gameInfo(game.gameId, game.boardSize, game.grandPrize);
   }
 
-  function setOpponent(uint256 _gameId) public{
+  function setOpponent(uint256 _gameId) public payable{
     require(_gameId > 0, "Game id is negative!");
     Game storage game=games[_gameId];
 
     game.player2=msg.sender;
     game.playable=false;
+    grandPrize+=msg.value;
     emit gameJoined(_gameId, msg.sender);
   }
 
@@ -119,22 +123,40 @@ contract Battleship {
       emit shotEvent(_gameId, game.player1, _shotSquareId);
   }
 
-  function shotResult(uint256 _gameId, uint256 _shotResult, uint256 _sunk, uint256 _shotSquareId, bytes32[] memory _merkleProof) public {
+  function shotResult(uint256 _gameId, uint256 _shotResult, string memory _sunk, uint256 _shotSquareId, bytes32[] memory _merkleProof) public {
     require(_gameId > 0, "Game id is negative!");
     
     Game memory game=games[_gameId];
     address shoter;
     if(msg.sender==game.player1){
       shoter=game.player2;
-      if(_sunk==1)
+      if(areStringsEqual(_sunk,"")){
         game.remainShipsP1--;
+      }
     } else {
       shoter=game.player1;
-      if(_sunk==1)
+      if(areStringsEqual(_sunk,"")){
         game.remainShipsP2--;
+      }    
     }
 
-    emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId);
+    emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId, _sunk);
+
+    if(game.remainShipsP2==0){
+      emit gameEnded(_gameId, game.player1, game.player2);
+
+      address payable winnerAddress = payable(game.player1);
+      winnerAddress.transfer(grandPrize);
+      grandPrize = 0;
+    }
+    
+    if(game.remainShipsP1==0){
+      emit gameEnded(_gameId, game.player2, game.player1);
+      
+      address payable winnerAddress = payable(game.player2);
+      winnerAddress.transfer(grandPrize);
+      grandPrize = 0;
+    }
   }
 
   function deleteElementFromArray(uint256 _element) internal {
@@ -152,5 +174,9 @@ contract Battleship {
   function random() internal view returns (uint256) {
     uint256 randomnumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, block.coinbase))) % availableGames.length;
     return randomnumber;
+  }
+
+  function areStringsEqual(string memory str1, string memory str2) public pure returns (bool) {
+    return (keccak256(abi.encodePacked(str1)) == keccak256(abi.encodePacked(str2)));
   }
 }

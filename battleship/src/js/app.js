@@ -199,7 +199,7 @@ App = {
 
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
-      return battleshipInstance.createGame(grandPrize, boardSize)
+      return battleshipInstance.createGame(grandPrize, boardSize, {value: (grandPrize)})
     }).then(async function (logArray) {
       gameId = logArray.logs[0].args._gameId.toNumber();
       if (gameId < 0) {
@@ -277,7 +277,7 @@ App = {
   acceptGameCondition: function(){
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
-      return battleshipInstance.setOpponent(gameId);
+      return battleshipInstance.setOpponent(gameId, {value: (grandPrize)});
     })
     App.handleGameEvents();
   },
@@ -416,9 +416,11 @@ App = {
             homeBtn.style.display='none';
             gamePage.style.display='block';
             if(events.event=="gameCreated"){
+              console.log("---Handling gameCreated event---");
               document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
               playerTurn.style.display='none';
             } else if (events.event=="gameJoined"){
+              console.log("---Handling gameJoined event---");
               opponentInfo.querySelector('.connected').classList.toggle('active');
             }
             App.createBoard(user_grid, userSquares, boardSize);
@@ -428,6 +430,7 @@ App = {
           }        
           if(userInfo.querySelector('.connected').classList.contains('active') &&
             opponentInfo.querySelector('.connected').classList.contains('active')){
+              document.getElementById('info').innerText=" ";
               userSquares.forEach(square => {
                 square.addEventListener('dragover', App.dragOver);
                 square.addEventListener('drop', App.dragDrop);
@@ -435,6 +438,7 @@ App = {
             }
         } else if(events.event=="gameReady" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
           currentBlock=events.event.blockNumber;
+          console.log("---Handling gameReady event---");
           if(events.args._player==web3.eth.defaultAccount){
             userInfo.querySelector('.ready').classList.toggle('active');
           } else {
@@ -456,25 +460,33 @@ App = {
           }
         } else if(events.event=='shotEvent' && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
           currentBlock=events.event.blockNumber;
+          console.log("---Handling shotEvent event---");
 
           if(events.args._player==web3.eth.defaultAccount){
-            App.handleShot(events.args._shotSquareId);
-            
+            App.handleShot(events.args._shotSquareId.toNumber());
           }
-        } else if(events.event=='shotResultEvent' && events.args._gameId.toNumber()==gameId && events.block!=currentBlock){
+        } else if(events.event=='shotResultEvent' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock){
           currentBlock=events.event.blockNumber;
+          console.log("---Handling shotResultEvent event---");
 
-          if(events.args._shoter==web3.eth.defaultAccount){
-            shotResult=events.args._shotResult;
+          if(events.args._player==web3.eth.defaultAccount){
+            shotResult=events.args._shotResult.toNumber();
             console.log(shotResult);
             if(shotResult==1){
-              opponentSquares[events.args._shotSquareId].classList.toggle('boom');
+              opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('boom');
+              if(events.args._sunk!=""){
+                document.getElementById('info').innerText="You have sunk the "+events.args._sunk;
+                setTimeout(document.getElementById('info').innerText=" ", 10000);
+              }
             } else {
-              opponentSquares[events.args._shotSquareId].classList.toggle('miss');
+              opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('miss');
             }
             userTurn=false;
             playerTurn.innerText='Opponent go';
           }
+        } else if(events.event=='gameEnded' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock) {
+          currentBlock=events.event.blockNumber;
+          console.log("---Handling gameEnded event---");
         }
       }
     )
@@ -492,12 +504,27 @@ App = {
   handleShot: function(shotSquareId){
     const row=Math.floor(shotSquareId/boardSize);
     const col=Math.floor(shotSquareId-row*boardSize);
-    // console.log("Row ", row);
-    // console.log("Col ", col);
     if(userBoardMatrix[row][col]==1){
       console.log("The value is ", userBoardMatrix[row][col])
       shotFire=1;
       userSquares[shotSquareId].classList.toggle('boom');
+
+      if(userSquares[shotSquareId].classList.contains("destroyer-container")){
+        destroyerCount++;
+        sunk = destroyerCount==2 ? 1 : 0;
+      } else if(userSquares[shotSquareId].classList.contains("submarine-container")){
+        submarineCount++;
+        sunk = destroyerCount==3 ? 1 : 0;
+      } else if(userSquares[shotSquareId].classList.contains("cruiser-container")){
+        cruiserCount++;
+        sunk = destroyerCount==3 ? 1 : 0;
+      } else if(userSquares[shotSquareId].classList.contains("battleship-container")){
+        battlehsipCount++;
+        sunk = destroyerCount==4 ? 1 : 0;
+      } else if(userSquares[shotSquareId].classList.contains("carrier-container")){
+        cruiserCount++;
+        sunk = destroyerCount==5 ? 1 : 0;
+      } 
     } else {
       console.log("The value is ", userBoardMatrix[row][col])
       shotFire=0;
@@ -505,8 +532,6 @@ App = {
     }
 
     const merkleProof=App.generateMerkleProof(merkleTree.tree, shotSquareId);
-    console.log("The merkle prof is ", merkleProof);
-    console.log("Shot fire is ", shotFire);
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
       return battleshipInstance.shotResult(gameId, shotFire, sunk, shotSquareId, merkleProof);
@@ -570,6 +595,10 @@ App = {
     }
   
     return proof;
+  },
+  
+  sleep: function(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 };
 
