@@ -16,14 +16,14 @@ contract Battleship {
     bytes32 p2MerkleRoot;
     uint256 penaltyTimeout;
     address accusedPlayer;
-    bool playable;
+    bool ended;
   }
 
   event gameCreated(uint256 _gameId, address indexed _from);
   event gameJoined(uint256 _gameId, address indexed _from);
   event gameReady(uint256 _gameId, address indexed _playerTurn, address indexed _player);
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
-  event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser);
+  event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser, uint256 _cheat);
   event shotEvent(uint256 _gameId, address indexed _player, uint256 _shotSquareId);
   event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId, string _sunk);
   event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
@@ -35,21 +35,17 @@ contract Battleship {
   //Available games array
   uint256[] public availableGames;
 
-  uint256 public totalGames=0;
-
-  uint256 internal grandPrize=0;
-
   constructor() {}
 
-  function getGameId() public returns (uint256) {
+  function getGameId() internal returns (uint256) {
     return gameId++;
   }
 
-  function createGame(uint256 _grandPrize, uint256 _boardSize) public payable {
+  function createGame(uint256 _boardSize) public payable {
     Game memory game=Game(getGameId(), 
               msg.sender, 
               address(0),
-              _grandPrize,
+              msg.value,
               _boardSize,
               5,
               5,
@@ -60,20 +56,20 @@ contract Battleship {
               true);
     games[game.gameId]=game;
     availableGames.push(game.gameId);
-    totalGames++;
-    grandPrize+=msg.value;
+
     emit gameCreated(game.gameId, msg.sender);
   }
 
   function joinGameByGameId(uint256 _gameId) public {
     require(games[_gameId].gameId != 0, "No existing game with this ID");
-    require(games[_gameId].playable, "Selected game is not playable");
       
     Game memory game=games[_gameId];
     emit gameInfo(_gameId, game.boardSize, game.grandPrize);
   }
 
   function joinRandomGame() public {
+    require(availableGames.length > 0, "No available games");
+
     uint256 index=random();
     uint256 i=0;
     while(availableGames[index]==0 && i<10){
@@ -84,7 +80,6 @@ contract Battleship {
     require(i < 10, "Something goes wrong, try again!");
 
     Game memory game=games[index];
-    require(game.playable, "Something goes wrong, try again!");
     emit gameInfo(game.gameId, game.boardSize, game.grandPrize);
   }
 
@@ -93,8 +88,7 @@ contract Battleship {
     Game storage game=games[_gameId];
 
     game.player2=msg.sender;
-    game.playable=false;
-    grandPrize+=msg.value;
+    game.grandPrize+=msg.value;
     emit gameJoined(_gameId, msg.sender);
   }
 
@@ -123,39 +117,82 @@ contract Battleship {
       emit shotEvent(_gameId, game.player1, _shotSquareId);
   }
 
-  function shotResult(uint256 _gameId, uint256 _shotResult, string memory _sunk, uint256 _shotSquareId, bytes32[] memory _merkleProof) public {
+  function shotResult(uint256 _gameId, uint256 _shotResult, string memory _sunk, uint256 _shotSquareId, bytes32 _hashedLeaf, bytes32[] calldata _merkleProof) public {
     require(_gameId > 0, "Game id is negative!");
-    
+    require(_shotResult==0 || _shotResult ==1, "Game result not valid");
+    require(_shotSquareId >= 0, "Shot square ID not valid");
+    require(_hashedLeaf!=0, "Hashed Leaf must be not empty");
+    require(_merkleProof.length >= 1, "Merkle proof must not be empty");
+
     Game memory game=games[_gameId];
     address shoter;
+    bytes32 merkleRoot;
     if(msg.sender==game.player1){
       shoter=game.player2;
+      merkleRoot=game.p1MerkleRoot;
       if(areStringsEqual(_sunk,"")){
         game.remainShipsP1--;
       }
     } else {
       shoter=game.player1;
+      merkleRoot=game.p2MerkleRoot;
       if(areStringsEqual(_sunk,"")){
         game.remainShipsP2--;
       }    
     }
 
-    emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId, _sunk);
+    bytes32 calculatedMerkleRoot=getMerkleRoot(_hashedLeaf, _merkleProof);
 
-    if(game.remainShipsP2==0){
-      emit gameEnded(_gameId, game.player1, game.player2);
+    if(merkleRoot==calculatedMerkleRoot){
+      emit shotResultEvent(_gameId, shoter, _shotResult, _shotSquareId, _sunk);
 
-      address payable winnerAddress = payable(game.player1);
-      winnerAddress.transfer(grandPrize);
-      grandPrize = 0;
+      if(game.remainShipsP2==0){
+        emit gameEnded(_gameId, game.player1, game.player2, 0);
+
+        payable(game.player1).transfer(game.grandPrize);
+        game.grandPrize = 0;
+      }
+      
+      if(game.remainShipsP1==0){
+        emit gameEnded(_gameId, game.player2, game.player1, 0);
+
+        payable(game.player2).transfer(game.grandPrize);
+        game.grandPrize = 0;
+      }
+    } else {
+      emit gameEnded(_gameId, shoter, msg.sender, 1);
+      payable(shoter).transfer(game.grandPrize);
+      game.grandPrize = 0;
+      game.ended = true;
     }
     
-    if(game.remainShipsP1==0){
-      emit gameEnded(_gameId, game.player2, game.player1);
+  }
+
+  function getMerkleRoot(bytes32 _hashedLeaf, bytes32[] calldata _merkleProof) internal pure returns (bytes32) {
+    bytes32 computedHash = _hashedLeaf;
+
+    for (uint256 i = 0; i < _merkleProof.length; i++) {
+        computedHash = keccak256(abi.encodePacked(computedHash^_merkleProof[i]));
+    }
+
+    return computedHash;
+  }
+
+  function quitGame(uint256 _gameId) public {
+    require(_gameId > 0, "Game ID is negative!");
+
+    Game memory game=games[_gameId];
+
+    if(msg.sender==game.player1){
+      emit gameEnded(_gameId, game.player2, game.player1, 0);
+
+      payable(game.player2).transfer(game.grandPrize);
+      game.grandPrize = 0;
+    }else if(msg.sender==game.player2){
+      emit gameEnded(_gameId, game.player1, game.player2, 0);
       
-      address payable winnerAddress = payable(game.player2);
-      winnerAddress.transfer(grandPrize);
-      grandPrize = 0;
+      payable(game.player1).transfer(game.grandPrize);
+      game.grandPrize = 0;
     }
   }
 
@@ -172,8 +209,7 @@ contract Battleship {
   }
 
   function random() internal view returns (uint256) {
-    uint256 randomnumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, block.coinbase))) % availableGames.length;
-    return randomnumber;
+    return uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, block.coinbase))) % availableGames.length;
   }
 
   function areStringsEqual(string memory str1, string memory str2) public pure returns (bool) {

@@ -28,6 +28,7 @@ const carrier = document.querySelector('.carrier-container');
 const quitBtn=document.querySelector('#quit-game-btn');
 const startGameBtn=document.querySelector('#start');
 const playerTurn=document.querySelector('#whose-go');
+const playerInfo=document.querySelector('#info');
 const userInfo=document.querySelector(`.p1`);
 const opponentInfo=document.querySelector(`.p2`);
 
@@ -48,7 +49,7 @@ let isHorizontal = true;
 let allShipsPlaced=false;
 let userTurn=false;
 let shotFire=-1;
-let sunk=0;
+let sunk="";
 const userBoardMatrix=[];
 //Ships
 const shipArray = [];
@@ -110,6 +111,7 @@ App = {
     sendGameConditionBtn.addEventListener('click', App.setGameCondition);
     sendGameIdBtn.addEventListener('click', App.findGame);
     acceptGameConditionBtn.addEventListener('click', App.acceptGameCondition);
+    quitGameConditionBtn.addEventListener('click', App.backHome);
     quitBtn.addEventListener('click', App.quitGame);
     rotate_btn.addEventListener('click', App.rotate);
     startGameBtn.addEventListener('click', App.startGame);
@@ -199,7 +201,7 @@ App = {
 
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
-      return battleshipInstance.createGame(grandPrize, boardSize, {value: (grandPrize)})
+      return battleshipInstance.createGame(boardSize, {value: (grandPrize)})
     }).then(async function (logArray) {
       gameId = logArray.logs[0].args._gameId.toNumber();
       if (gameId < 0) {
@@ -275,6 +277,7 @@ App = {
   },
 
   acceptGameCondition: function(){
+    console.log("Game conditions accepted!");
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
       return battleshipInstance.setOpponent(gameId, {value: (grandPrize)});
@@ -283,7 +286,11 @@ App = {
   },
 
   quitGame: function(){
-
+    console.log("Game conditions rejected")
+    App.contracts.Battleship.deployed().then(async function (instance){
+      battleshipInstance=instance;
+      return battleshipInstance.quitGame(gameId);
+    })
   },
 
   rotate: function(){
@@ -294,7 +301,6 @@ App = {
       battleship.classList.toggle('battleship-container-vertical')
       carrier.classList.toggle('carrier-container-vertical')
       isHorizontal = false
-      // console.log(isHorizontal)
       return
     }
     if (!isHorizontal) {
@@ -395,8 +401,7 @@ App = {
     }
 
     merkleTree=App.buildMerkleTree(userBoardMatrix);
-    console.log(merkleTree);
-    merkleRoot=merkleTree.merkleRoot;    
+    merkleRoot=merkleTree.merkleRoot[0];
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
       return battleshipInstance.setMerkleRoot(gameId, merkleRoot);
@@ -417,7 +422,7 @@ App = {
             gamePage.style.display='block';
             if(events.event=="gameCreated"){
               console.log("---Handling gameCreated event---");
-              document.getElementById('info').innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
+              playerInfo.innerText="Game with ID "+ gameId + " created. Wait for an opponent!";
               playerTurn.style.display='none';
             } else if (events.event=="gameJoined"){
               console.log("---Handling gameJoined event---");
@@ -430,7 +435,7 @@ App = {
           }        
           if(userInfo.querySelector('.connected').classList.contains('active') &&
             opponentInfo.querySelector('.connected').classList.contains('active')){
-              document.getElementById('info').innerText=" ";
+              playerInfo.innerText=" ";
               userSquares.forEach(square => {
                 square.addEventListener('dragover', App.dragOver);
                 square.addEventListener('drop', App.dragDrop);
@@ -474,9 +479,10 @@ App = {
             console.log(shotResult);
             if(shotResult==1){
               opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('boom');
+              console.log(events.args._sunk);
               if(events.args._sunk!=""){
-                document.getElementById('info').innerText="You have sunk the "+events.args._sunk;
-                setTimeout(document.getElementById('info').innerText=" ", 10000);
+                playerInfo.innerText="You have sunk the "+events.args._sunk;
+                setTimeout(playerInfo.innerText=" ", 10000);
               }
             } else {
               opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('miss');
@@ -487,6 +493,17 @@ App = {
         } else if(events.event=='gameEnded' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock) {
           currentBlock=events.event.blockNumber;
           console.log("---Handling gameEnded event---");
+          
+          if(events.args._cheat.toNumber()==1)
+            console.log("The loser has cheated");
+
+          if(events.args._winner==web3.eth.defaultAccount){
+            console.log("Game ended. YOU WON!")
+            playerInfo.innerText="Game ended. YOU WON!";
+          } else if(events.args._loser==web3.eth.defaultAccount){
+            console.log("Game ended. You lose!")
+            playerInfo.innerText="Game ended. You lose!";
+          }
         }
       }
     )
@@ -505,43 +522,54 @@ App = {
     const row=Math.floor(shotSquareId/boardSize);
     const col=Math.floor(shotSquareId-row*boardSize);
     if(userBoardMatrix[row][col]==1){
-      console.log("The value is ", userBoardMatrix[row][col])
       shotFire=1;
       userSquares[shotSquareId].classList.toggle('boom');
 
-      if(userSquares[shotSquareId].classList.contains("destroyer-container")){
+      if(userSquares[shotSquareId].classList.contains('destroyer')){
         destroyerCount++;
-        sunk = destroyerCount==2 ? 1 : 0;
-      } else if(userSquares[shotSquareId].classList.contains("submarine-container")){
+        sunk = destroyerCount==2 ? "destroyer" : "";
+      } else if(userSquares[shotSquareId].classList.contains('submarine')){
         submarineCount++;
-        sunk = destroyerCount==3 ? 1 : 0;
-      } else if(userSquares[shotSquareId].classList.contains("cruiser-container")){
+        sunk = destroyerCount==3 ? "submarine" : "";
+      } else if(userSquares[shotSquareId].classList.contains('cruiser')){
         cruiserCount++;
-        sunk = destroyerCount==3 ? 1 : 0;
-      } else if(userSquares[shotSquareId].classList.contains("battleship-container")){
+        sunk = destroyerCount==3 ? "cruiser" : "";
+      } else if(userSquares[shotSquareId].classList.contains('battleship')){
         battlehsipCount++;
-        sunk = destroyerCount==4 ? 1 : 0;
-      } else if(userSquares[shotSquareId].classList.contains("carrier-container")){
+        sunk = destroyerCount==4 ? "battleship" : "";
+      } else if(userSquares[shotSquareId].classList.contains('carrier')){
         cruiserCount++;
-        sunk = destroyerCount==5 ? 1 : 0;
+        sunk = destroyerCount==5 ? "carrier" : "";
       } 
     } else {
-      console.log("The value is ", userBoardMatrix[row][col])
       shotFire=0;
       userSquares[shotSquareId].classList.toggle('miss');
     }
 
     const merkleProof=App.generateMerkleProof(merkleTree.tree, shotSquareId);
+    const hashedLeaf=merkleTree.tree[0][shotSquareId];
+
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
-      return battleshipInstance.shotResult(gameId, shotFire, sunk, shotSquareId, merkleProof);
+      return battleshipInstance.shotResult(gameId, shotFire, sunk, shotSquareId, hashedLeaf, merkleProof);
     }).then(async function (logArray) {
       shotFire=-1;
       playerTurn.innerText='Your go';
     }).catch(function (err) {
-      //alert("ERROR: " + err.message);
       console.log(err.message);
     });
+  },
+
+  calculateMerkleRoot: function(hashedLeaf, merkleProof){
+    console.log("Calculating merkle root")
+    let computedHash = hashedLeaf;
+    for (let i = 0; i < merkleProof.length; i++) {
+      const proofElement = merkleProof[i];
+      const combinedElement=App.XOR(computedHash,proofElement);
+      computedHash = window.web3Utils.soliditySha3(combinedElement);
+    }
+
+    return computedHash;
   },
 
   completeLeavesWithEmptyValues: function(leaves) {
@@ -557,22 +585,34 @@ App = {
 
   //Function to build the Merkle tree
   buildMerkleTree: function(userBoardMatrix) {
-    const leafHashes = userBoardMatrix.map(row => window.web3Utils.keccak256(JSON.stringify(row)));
+    const leafHashes = [];
+  
+    for (let i = 0; i < userBoardMatrix.length; i++) {
+      for (let j = 0; j < userBoardMatrix[i].length; j++) {
+        const cellValue = userBoardMatrix[i][j];
+        const salt = Math.floor(Math.random() * 10000);
+        const leafData = JSON.stringify(cellValue) + salt;
+        const leafHash = window.web3Utils.soliditySha3(leafData);
+        leafHashes.push(leafHash);
+      }
+    }
+  
     const completedLeafHashes = App.completeLeavesWithEmptyValues(leafHashes);
-    const tree = [...completedLeafHashes];
-
+    const tree = [];
+    tree.push(completedLeafHashes)
+  
     let levelHashes = completedLeafHashes;
     while (levelHashes.length > 1) {
       const newLevelHashes = [];
       for (let i = 0; i < levelHashes.length; i += 2) {
-        const combinedData = levelHashes[i] ^ levelHashes[i + 1];
+        const combinedData = App.XOR(levelHashes[i], levelHashes[i + 1]);
         const combinedHash = window.web3Utils.soliditySha3(combinedData);
         newLevelHashes.push(combinedHash);
       }
-      tree.push(...newLevelHashes);
+      tree.push(newLevelHashes);
       levelHashes = newLevelHashes;
     }
-
+  
     const merkleRoot = tree[tree.length - 1];
     return {
       merkleRoot: merkleRoot,
@@ -580,20 +620,31 @@ App = {
     };
   },
 
+  XOR: function (leaf1, leaf2) {
+  var BN = window.web3Utils.BN;
+  var a = new BN(leaf1.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
+  var b = new BN(leaf2.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
+  var xorResult = a.xor(b).toString(16);
+  var paddedResult = '0x' + xorResult.padStart(64, '0'); // Aggiungi padding per ottenere una stringa di lunghezza 64
+  return paddedResult;
+},
   //Function to generate the Merkle Proof
   generateMerkleProof: function(tree, index) {
+    console.log("Generating MerkleProof");
     const proof = [];
     let levelIndex = index;
   
-    for (let i = 0; i < tree.length - 1; i += 2) {
-      if (levelIndex % 2 === 1) {
-        proof.push(tree[i]);
-      } else if (levelIndex < tree.length - 1) {
-        proof.push(tree[i + 1]);
+    for (let i = 0; i < tree.length - 1; i ++) {
+      if (levelIndex % 2 === 0) {
+        proof.push(tree[i][levelIndex+1]);
+        levelIndex = Math.floor(levelIndex / 2);
+      } else {
+        proof.push(tree[i][levelIndex-1]);
+        levelIndex = Math.floor((levelIndex-1) / 2);
       }
-      levelIndex = Math.floor(levelIndex / 2);
     }
-  
+
+    console.log("Merkle Proof Generated");
     return proof;
   },
   
