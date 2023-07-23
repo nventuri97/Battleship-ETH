@@ -64,14 +64,19 @@ body {
   left: 1.5vw;
 }
 
+.accuse{
+  position:fixed;
+  bottom: 1.5vw;
+  right: 1.5vw
+}
+
 .setup-btns{
-  position: absolute;
+  position: fixed;
   bottom: 10em;
-  left: 32em;
 }
 
 .setup-params {
-  position: absolute;
+  position: fixed;
   bottom: 2em;
   left: 32em;
 }

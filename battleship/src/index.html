@@ -43,13 +43,13 @@
 
         <div class="container">
           <!-- Main button -->
-          <div id="setup-button" class="setup-btns">
+          <div id="setup-button" class="container setup-btns">
             <button id="create-new-game-btn" class="btn splash-btn">Create new game</button>
             <button id="join-game-btn" class="btn splash-btn">Join existing game</button>
           </div>
 
           <!-- Set up a new game with required parameters -->
-          <div id="set-up-new-game" class="setup-params" style="display: none;">
+          <div id="set-up-new-game" class="container setup-params" style="display: none;">
             <div>
               <h4>Insert the size of the game board</h4>
               <input required type="number" id="boardSize">
@@ -85,7 +85,7 @@
     </div>
 
     <!-- Game page -->
-    <div id="game-page" style="display: none;">
+    <div id="game-page" style="display: none;" class="container">
       <div id="players-info" class="container">
         <div class="player p1">
             Player 1
@@ -125,7 +125,10 @@
         <h3 id="whose-go" class="info-text"> </h3>
         <h3 id="info" class="info-text"></h3>
       </div>
-      <button id="quit-game-btn" class="btn splash-btn quit">Quit</button>
+      <div class="container">
+        <button id="quit-game-btn" class="btn splash-btn quit">Quit</button>
+        <button id="accusation-btn" class="btn splash-btn accuse">Accuse</button>
+      </div>
   </div>
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
