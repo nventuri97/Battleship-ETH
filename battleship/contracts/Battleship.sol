@@ -25,8 +25,8 @@ contract Battleship {
   event gameInfo(uint256 _gameId, uint256 _boardSize, uint256 _grandPrize);
   event gameEnded(uint256 _gameId, address indexed _winner, address indexed _looser, uint256 _cheat);
   event shotEvent(uint256 _gameId, address indexed _player, uint256 _shotSquareId);
-  event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId, string _sunk);
-  event accusationTrial(uint256 _gameId, address indexed _accuser, address indexed _accused);
+  event shotResultEvent(uint256 _gameId, address indexed _player, uint256 _shotResult, uint256 _shotSquareId, uint256 _sunk);
+  event accusationEvent(uint256 _gameId, address indexed _accuser, address indexed _accused);
 
   //Array of all games present in the blockchain
   mapping(uint256 => Game) public games;
@@ -53,7 +53,7 @@ contract Battleship {
               0,
               0,
               address(0),
-              true);
+              false);
     games[game.gameId]=game;
     availableGames.push(game.gameId);
 
@@ -61,7 +61,7 @@ contract Battleship {
   }
 
   function joinGameByGameId(uint256 _gameId) public {
-    require(games[_gameId].gameId != 0, "No existing game with this ID");
+    require(_gameId > 0, "Game ID is negative");
       
     Game memory game=games[_gameId];
     emit gameInfo(_gameId, game.boardSize, game.grandPrize);
@@ -115,9 +115,14 @@ contract Battleship {
       emit shotEvent(_gameId, game.player2, _shotSquareId);
     else
       emit shotEvent(_gameId, game.player1, _shotSquareId);
+
+    if(game.accusedPlayer==msg.sender){
+      game.penaltyTimeout=0;
+      game.accusedPlayer=address(0);
+    }
   }
 
-  function shotResult(uint256 _gameId, uint256 _shotResult, string memory _sunk, uint256 _shotSquareId, bytes32 _hashedLeaf, bytes32[] calldata _merkleProof) public {
+  function shotResult(uint256 _gameId, uint256 _shotResult, uint256 _sunk, uint256 _shotSquareId, bytes32 _hashedLeaf, bytes32[] calldata _merkleProof) public {
     require(_gameId > 0, "Game id is negative!");
     require(_shotResult==0 || _shotResult ==1, "Game result not valid");
     require(_shotSquareId >= 0, "Shot square ID not valid");
@@ -130,13 +135,13 @@ contract Battleship {
     if(msg.sender==game.player1){
       shoter=game.player2;
       merkleRoot=game.p1MerkleRoot;
-      if(areStringsEqual(_sunk,"")){
+      if(_sunk==1){
         game.remainShipsP1--;
       }
     } else {
       shoter=game.player1;
       merkleRoot=game.p2MerkleRoot;
-      if(areStringsEqual(_sunk,"")){
+      if(_sunk==1){
         game.remainShipsP2--;
       }    
     }
@@ -196,6 +201,39 @@ contract Battleship {
     }
   }
 
+  function accuseOpponent(uint256 _gameId) public {
+    require(_gameId > 0, "Game ID is negative");
+
+    Game memory game=games[_gameId];
+    if(game.accusedPlayer==address(0)){
+      game.penaltyTimeout=block.number+5;
+      if(msg.sender==game.player1){
+        game.accusedPlayer=game.player2;
+        emit accusationEvent(_gameId, game.player1, game.player2);
+      } else {
+        game.accusedPlayer=game.player1;
+        emit accusationEvent(_gameId, game.player2, game.player1);
+      }
+    }
+  }
+
+  function accuseCheck(uint256 _gameId) public payable{
+    require(_gameId > 0, "Game ID is negative");
+
+    Game memory game=games[_gameId];
+    if(game.accusedPlayer==game.player1){
+      if(game.penaltyTimeout<=block.number){
+        payable(game.player2).transfer(game.grandPrize);
+        emit gameEnded(_gameId, game.player2, game.player1, 0);
+      }
+    } else {
+      if(game.penaltyTimeout<=block.number){
+        payable(game.player1).transfer(game.grandPrize);
+        emit gameEnded(_gameId, game.player1, game.player2, 0);
+      }
+    }
+  }
+
   function deleteElementFromArray(uint256 _element) internal {
     for (uint256 i = 0; i < availableGames.length; i++) {
         if (availableGames[i] == _element) {
@@ -210,9 +248,5 @@ contract Battleship {
 
   function random() internal view returns (uint256) {
     return uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, block.coinbase))) % availableGames.length;
-  }
-
-  function areStringsEqual(string memory str1, string memory str2) public pure returns (bool) {
-    return (keccak256(abi.encodePacked(str1)) == keccak256(abi.encodePacked(str2)));
   }
 }

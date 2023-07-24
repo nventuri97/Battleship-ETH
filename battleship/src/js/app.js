@@ -31,10 +31,12 @@ const playerTurn=document.querySelector('#whose-go');
 const playerInfo=document.querySelector('#info');
 const userInfo=document.querySelector(`.p1`);
 const opponentInfo=document.querySelector(`.p2`);
+const accusationBtn=document.querySelector('#accusation-btn');
 
 var gameId = null;
 var grandPrize = null;
 var boardSize = null;
+const weiValue = "1000000000000000000";
 var destroyerCount=0;
 var submarineCount=0;
 var cruiserCount=0;
@@ -48,8 +50,9 @@ let selectedShipNameWithIndex;
 let isHorizontal = true;
 let allShipsPlaced=false;
 let userTurn=false;
+let iAccused=false;
 let shotFire=-1;
-let sunk="";
+let sunk=0;
 const userBoardMatrix=[];
 //Ships
 const shipArray = [];
@@ -115,6 +118,7 @@ App = {
     quitBtn.addEventListener('click', App.quitGame);
     rotate_btn.addEventListener('click', App.rotate);
     startGameBtn.addEventListener('click', App.startGame);
+    accusationBtn.addEventListener('click', App.accuseOpponent)
 
     ships.forEach(ship => {
       ship.addEventListener('dragstart', App.dragStart)
@@ -201,7 +205,7 @@ App = {
 
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance = instance;
-      return battleshipInstance.createGame(boardSize, {value: (grandPrize)})
+      return battleshipInstance.createGame(boardSize, {value: (grandPrize*weiValue)})
     }).then(async function (logArray) {
       gameId = logArray.logs[0].args._gameId.toNumber();
       if (gameId < 0) {
@@ -233,7 +237,7 @@ App = {
       }).then(async function (logArray){
         gameId = logArray.logs[0].args._gameId.toNumber();
         boardSize = logArray.logs[0].args._boardSize.toNumber();
-        grandPrize = logArray.logs[0].args._grandPrize.toNumber();
+        grandPrize = Math.floor(logArray.logs[0].args._grandPrize.toNumber()/weiValue);
         if (gameId < 0) {
           console.error("Something went wrong, game id is negative!");
         }
@@ -242,7 +246,7 @@ App = {
           acceptGameConditionDiv.style.display='block';
           document.querySelector('#game-id-cond').innerText='GAME ID: '+gameId;
           document.querySelector('#board-size-cond').innerText='Board size: '+boardSize;
-          document.querySelector('#grand-prize-cond').innerText='Grand prize: '+grandPrize+' ETH';
+          document.querySelector('#grand-prize-cond').innerText='Grand prize: '+window.web3Utils.fromWei(grandPrize, 'ether')+' ETH';
         }
       }).catch(function (err) {
         console.error(err);
@@ -257,7 +261,7 @@ App = {
       }).then(async function (logArray){
         gameId = logArray.logs[0].args._gameId.toNumber();
         boardSize = logArray.logs[0].args._boardSize.toNumber();
-        grandPrize = logArray.logs[0].args._grandPrize.toNumber();
+        grandPrize = Math.floor(logArray.logs[0].args._grandPrize.toNumber()/weiValue);
         if (gameId < 0) {
           console.error("Something went wrong, game id is negative!");
         }
@@ -286,7 +290,7 @@ App = {
   },
 
   quitGame: function(){
-    console.log("Game conditions rejected")
+    console.log("The user decided to quit the game");
     App.contracts.Battleship.deployed().then(async function (instance){
       battleshipInstance=instance;
       return battleshipInstance.quitGame(gameId);
@@ -435,11 +439,11 @@ App = {
           }        
           if(userInfo.querySelector('.connected').classList.contains('active') &&
             opponentInfo.querySelector('.connected').classList.contains('active')){
-              playerInfo.innerText=" ";
               userSquares.forEach(square => {
                 square.addEventListener('dragover', App.dragOver);
                 square.addEventListener('drop', App.dragDrop);
               });
+              playerInfo.innerText="";
             }
         } else if(events.event=="gameReady" && events.args._gameId.toNumber() == gameId && events.blockNumber != currentBlock){
           currentBlock=events.event.blockNumber;
@@ -459,6 +463,8 @@ App = {
             } else {
               playerTurn.innerText='Opponent go';
             }
+            startGameBtn.style.display='none';
+            rotate_btn.style.display='none';
             opponentSquares.forEach(square => {
               square.addEventListener('click', App.shot)
             });
@@ -479,18 +485,25 @@ App = {
             console.log(shotResult);
             if(shotResult==1){
               opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('boom');
-              console.log(events.args._sunk);
-              if(events.args._sunk!=""){
-                playerInfo.innerText="You have sunk the "+events.args._sunk;
-                setTimeout(playerInfo.innerText=" ", 10000);
-              }
+              if(events.args._sunk.toNumber()==1)
+                playerInfo.innerText="You have sunk a ship";
             } else {
               opponentSquares[events.args._shotSquareId.toNumber()].classList.toggle('miss');
             }
             userTurn=false;
+            iAccused=false;
             playerTurn.innerText='Opponent go';
+            playerInfo.innerText="";
           }
-        } else if(events.event=='gameEnded' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock) {
+        } else if(events.event=='accusationEvent' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock){
+          currentBlock=events.event.blockNumber;
+
+          if(web3.eth.defaultAccount==events.args._accused){
+            alert("The opponent accuse you! Play or you will automatically lose the game!");
+          } else if(web3.eth.defaultAccount==events.args._accuser){
+            iAccused=true;
+          }
+        }else if(events.event=='gameEnded' && events.args._gameId.toNumber()==gameId && events.blockNumber!=currentBlock) {
           currentBlock=events.event.blockNumber;
           console.log("---Handling gameEnded event---");
           
@@ -505,17 +518,27 @@ App = {
             playerInfo.innerText="Game ended. You lose!";
           }
         }
+        if(iAccused){
+          App.contracts.Battleship.deployed().then(async function (instance){
+            battleshipInstance=instance;
+            return battleshipInstance.accusedCheck(gameId);
+          })
+        }
       }
     )
   },
 
   shot: async function(){
-    const shotSquareId=this.dataset.id;
-    console.log("Shot square with ID ", shotSquareId);
-    App.contracts.Battleship.deployed().then(async function (instance){
-      battleshipInstance=instance;
-      return battleshipInstance.shot(gameId, shotSquareId);
-    })
+    if(userTurn){
+      const shotSquareId=this.dataset.id;
+      console.log("Shot square with ID ", shotSquareId);
+      App.contracts.Battleship.deployed().then(async function (instance){
+        battleshipInstance=instance;
+        return battleshipInstance.shot(gameId, shotSquareId);
+      })
+    } else {
+      alert("You cannot shot in the opponent turn");
+    }
   },
 
   handleShot: function(shotSquareId){
@@ -527,19 +550,19 @@ App = {
 
       if(userSquares[shotSquareId].classList.contains('destroyer')){
         destroyerCount++;
-        sunk = destroyerCount==2 ? "destroyer" : "";
+        sunk = destroyerCount==2 ? 1 : 0;
       } else if(userSquares[shotSquareId].classList.contains('submarine')){
         submarineCount++;
-        sunk = destroyerCount==3 ? "submarine" : "";
+        sunk = destroyerCount==3 ? 1 : 0;
       } else if(userSquares[shotSquareId].classList.contains('cruiser')){
         cruiserCount++;
-        sunk = destroyerCount==3 ? "cruiser" : "";
+        sunk = destroyerCount==3 ? 1 : 0;
       } else if(userSquares[shotSquareId].classList.contains('battleship')){
         battlehsipCount++;
-        sunk = destroyerCount==4 ? "battleship" : "";
+        sunk = destroyerCount==4 ? 1 : 0;
       } else if(userSquares[shotSquareId].classList.contains('carrier')){
         cruiserCount++;
-        sunk = destroyerCount==5 ? "carrier" : "";
+        sunk = destroyerCount==5 ? 1 : 0;
       } 
     } else {
       shotFire=0;
@@ -621,13 +644,13 @@ App = {
   },
 
   XOR: function (leaf1, leaf2) {
-  var BN = window.web3Utils.BN;
-  var a = new BN(leaf1.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
-  var b = new BN(leaf2.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
-  var xorResult = a.xor(b).toString(16);
-  var paddedResult = '0x' + xorResult.padStart(64, '0'); // Aggiungi padding per ottenere una stringa di lunghezza 64
-  return paddedResult;
-},
+    var BN = window.web3Utils.BN;
+    var a = new BN(leaf1.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
+    var b = new BN(leaf2.slice(2), 16); // Rimuovi il prefisso "0x" dalla stringa
+    var xorResult = a.xor(b).toString(16);
+    var paddedResult = '0x' + xorResult.padStart(64, '0'); // Aggiungi padding per ottenere una stringa di lunghezza 64
+    return paddedResult;
+  },
   //Function to generate the Merkle Proof
   generateMerkleProof: function(tree, index) {
     console.log("Generating MerkleProof");
@@ -648,8 +671,19 @@ App = {
     return proof;
   },
   
-  sleep: function(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  accuseOpponent: function(){
+    if(!userTurn){
+      console.log("Request accusation for the opponent");
+      
+      App.contracts.Battleship.deployed().then(async function (instance){
+        battleshipInstance=instance;
+        return battleshipInstance.accuseOpponent(gameId);
+      }).catch(function (err) {
+        console.log(err.message);
+      });
+    } else {
+      alert("You cannot accuse during your turn");
+    }
   }
 };
 
